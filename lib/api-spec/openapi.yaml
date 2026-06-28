@@ -85,18 +85,22 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SimpleOk" }
 
-  /messages:
+  /t/{slug}/messages:
     get:
       operationId: listMessages
       tags: [messages]
-      summary: List all public tributes (cards and videos)
+      summary: List all public tributes (cards and videos) for a tenant
       parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
         - in: query
           name: type
           required: false
           schema:
             type: string
-            enum: [all, card, video]
+            enum: [all, card, video, link]
         - in: query
           name: limit
           required: false
@@ -112,7 +116,12 @@ paths:
     post:
       operationId: createMessage
       tags: [messages]
-      summary: Post a new tribute (card or video)
+      summary: Post a new tribute (card, video, or link) for a tenant
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -125,11 +134,32 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Message" }
 
-  /messages/{id}:
+  /t/{slug}/messages/stats:
+    get:
+      operationId: getMessageStats
+      tags: [messages]
+      summary: Aggregate counts for a tenant's public wall
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageStats" }
+
+  /t/{slug}/messages/{id}:
     get:
       operationId: getMessage
       tags: [messages]
       parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
         - in: path
           name: id
           required: true
@@ -143,8 +173,12 @@ paths:
     patch:
       operationId: updateMessage
       tags: [messages]
-      summary: Admin-only — edit any tribute
+      summary: Owner/admin — edit any tribute
       parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
         - in: path
           name: id
           required: true
@@ -163,8 +197,12 @@ paths:
     delete:
       operationId: deleteMessage
       tags: [messages]
-      summary: Admin-only — delete any tribute
+      summary: Owner/admin — delete any tribute
       parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
         - in: path
           name: id
           required: true
@@ -176,29 +214,108 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SimpleOk" }
 
-  /messages/stats:
+  /t/{slug}/reach:
     get:
-      operationId: getMessageStats
-      tags: [messages]
-      summary: Aggregate counts for the public wall
-      responses:
-        "200":
-          description: Stats
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/MessageStats" }
-
-  /reach/nodes:
-    get:
-      operationId: getReachNetwork
+      operationId: getReach
       tags: [reach]
-      summary: Curated list of places, projects, and communities touched by Luis's work
+      summary: Tenant reach graph — nodes, edges, and summary
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
       responses:
         "200":
-          description: Network graph nodes
+          description: Reach graph
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ReachNetwork" }
+              schema: { $ref: "#/components/schemas/ReachGraph" }
+
+  /t/{slug}/reach/nodes:
+    post:
+      operationId: createReachNode
+      tags: [reach]
+      summary: Add a node to the tenant reach graph (auth required)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReachNodeInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReachNode" }
+
+  /t/{slug}/reach/edges:
+    post:
+      operationId: createReachEdge
+      tags: [reach]
+      summary: Add an edge to the tenant reach graph (auth required)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReachEdgeInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReachEdge" }
+
+  /t/{slug}/reach/nodes/{id}:
+    delete:
+      operationId: deleteReachNode
+      tags: [reach]
+      summary: Delete a reach node (owner/admin only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /t/{slug}/reach/edges/{id}:
+    delete:
+      operationId: deleteReachEdge
+      tags: [reach]
+      summary: Delete a reach edge (owner/admin only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
 
   /tenants:
     get:
@@ -431,7 +548,7 @@ components:
       properties:
         type:
           type: string
-          enum: [card, video]
+          enum: [card, video, link]
         body:
           type: string
           description: Plain text body (used for card messages and video captions)
@@ -439,7 +556,7 @@ components:
           type: string
         relationship:
           type: string
-          description: How the author knew Luis (colleague, friend, family, client, etc.)
+          description: How the author knew the person being memorialized (colleague, friend, family, client, etc.)
         location:
           type: string
         videoPath:
@@ -452,6 +569,12 @@ components:
           oneOf:
             - { $ref: "#/components/schemas/CardDesign" }
             - { type: "null" }
+        url:
+          type: string
+          description: URL for link-type tributes
+        nodeId:
+          type: integer
+          description: Optional reach graph node to attach this tribute to
 
     Message:
       type: object
@@ -460,7 +583,7 @@ components:
         id: { type: integer }
         type:
           type: string
-          enum: [card, video]
+          enum: [card, video, link]
         body: { type: ["string", "null"] }
         authorName: { type: string }
         relationship: { type: ["string", "null"] }
@@ -471,6 +594,8 @@ components:
           oneOf:
             - { $ref: "#/components/schemas/CardDesign" }
             - { type: "null" }
+        url: { type: ["string", "null"], description: "URL for link-type tributes" }
+        nodeId: { type: ["integer", "null"], description: "Attached reach graph node id" }
         createdAt: { type: string, format: date-time }
 
     MessageUpdate:
@@ -497,26 +622,26 @@ components:
 
     ReachNode:
       type: object
-      required: [id, label, category]
+      required: [id, label, category, isAnchor, createdAt]
       properties:
-        id: { type: string }
+        id: { type: integer }
         label: { type: string }
-        category:
-          type: string
-          enum: [project, city, agency, community, team, wonder]
-        weight: { type: number }
-        lat: { type: ["number", "null"] }
-        lng: { type: ["number", "null"] }
-        note: { type: ["string", "null"] }
+        category: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        note: { type: string }
+        isAnchor: { type: boolean }
+        createdAt: { type: string, format: date-time }
 
     ReachEdge:
       type: object
-      required: [source, target]
+      required: [id, sourceNodeId, targetNodeId]
       properties:
-        source: { type: string }
-        target: { type: string }
+        id: { type: integer }
+        sourceNodeId: { type: integer }
+        targetNodeId: { type: integer }
 
-    ReachNetwork:
+    ReachGraph:
       type: object
       required: [nodes, edges, summary]
       properties:
@@ -526,19 +651,26 @@ components:
         edges:
           type: array
           items: { $ref: "#/components/schemas/ReachEdge" }
-        summary: { $ref: "#/components/schemas/ReachSummary" }
+        summary:
+          type: object
+          additionalProperties: true
 
-    ReachSummary:
+    ReachNodeInput:
       type: object
-      required: [projects, agencies, cities, livesTouched]
+      required: [label, category]
       properties:
-        projects: { type: integer }
-        agencies: { type: integer }
-        cities: { type: integer }
-        livesTouched: { type: integer }
-        yearsOfService: { type: integer }
-        teamSize: { type: integer }
-        wonders: { type: integer }
+        label: { type: string }
+        category: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        note: { type: string }
+
+    ReachEdgeInput:
+      type: object
+      required: [sourceNodeId, targetNodeId]
+      properties:
+        sourceNodeId: { type: integer }
+        targetNodeId: { type: integer }
 
     Tenant:
       type: object

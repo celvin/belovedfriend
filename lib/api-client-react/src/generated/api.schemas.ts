@@ -106,6 +106,7 @@ export type MessageInputType = typeof MessageInputType[keyof typeof MessageInput
 export const MessageInputType = {
   card: 'card',
   video: 'video',
+  link: 'link',
 } as const;
 
 export interface MessageInput {
@@ -113,7 +114,7 @@ export interface MessageInput {
   /** Plain text body (used for card messages and video captions) */
   body?: string;
   authorName?: string;
-  /** How the author knew Luis (colleague, friend, family, client, etc.) */
+  /** How the author knew the person being memorialized (colleague, friend, family, client, etc.) */
   relationship?: string;
   location?: string;
   /**
@@ -127,6 +128,10 @@ export interface MessageInput {
      */
   photoPath?: string | null;
   card?: CardDesign | null;
+  /** URL for link-type tributes */
+  url?: string;
+  /** Optional reach graph node to attach this tribute to */
+  nodeId?: number;
 }
 
 export type MessageType = typeof MessageType[keyof typeof MessageType];
@@ -135,6 +140,7 @@ export type MessageType = typeof MessageType[keyof typeof MessageType];
 export const MessageType = {
   card: 'card',
   video: 'video',
+  link: 'link',
 } as const;
 
 export interface Message {
@@ -152,6 +158,16 @@ export interface Message {
   /** @nullable */
   photoPath?: string | null;
   card?: CardDesign | null;
+  /**
+     * URL for link-type tributes
+     * @nullable
+     */
+  url?: string | null;
+  /**
+     * Attached reach graph node id
+     * @nullable
+     */
+  nodeId?: number | null;
   createdAt: string;
 }
 
@@ -177,50 +193,42 @@ export interface MessageStats {
   recentAuthors?: string[];
 }
 
-export type ReachNodeCategory = typeof ReachNodeCategory[keyof typeof ReachNodeCategory];
-
-
-export const ReachNodeCategory = {
-  project: 'project',
-  city: 'city',
-  agency: 'agency',
-  community: 'community',
-  team: 'team',
-  wonder: 'wonder',
-} as const;
-
 export interface ReachNode {
-  id: string;
+  id: number;
   label: string;
-  category: ReachNodeCategory;
-  weight?: number;
-  /** @nullable */
-  lat?: number | null;
-  /** @nullable */
-  lng?: number | null;
-  /** @nullable */
-  note?: string | null;
+  category: string;
+  lat?: number;
+  lng?: number;
+  note?: string;
+  isAnchor: boolean;
+  createdAt: string;
 }
 
 export interface ReachEdge {
-  source: string;
-  target: string;
+  id: number;
+  sourceNodeId: number;
+  targetNodeId: number;
 }
 
-export interface ReachSummary {
-  projects: number;
-  agencies: number;
-  cities: number;
-  livesTouched: number;
-  yearsOfService?: number;
-  teamSize?: number;
-  wonders?: number;
-}
+export type ReachGraphSummary = { [key: string]: unknown };
 
-export interface ReachNetwork {
+export interface ReachGraph {
   nodes: ReachNode[];
   edges: ReachEdge[];
-  summary: ReachSummary;
+  summary: ReachGraphSummary;
+}
+
+export interface ReachNodeInput {
+  label: string;
+  category: string;
+  lat?: number;
+  lng?: number;
+  note?: string;
+}
+
+export interface ReachEdgeInput {
+  sourceNodeId: number;
+  targetNodeId: number;
 }
 
 export type TenantStatus = typeof TenantStatus[keyof typeof TenantStatus];
@@ -305,5 +313,6 @@ export const ListMessagesType = {
   all: 'all',
   card: 'card',
   video: 'video',
+  link: 'link',
 } as const;
 

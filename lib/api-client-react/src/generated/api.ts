@@ -29,7 +29,11 @@ import type {
   MessageInput,
   MessageStats,
   MessageUpdate,
-  ReachNetwork,
+  ReachEdge,
+  ReachEdgeInput,
+  ReachGraph,
+  ReachNode,
+  ReachNodeInput,
   SimpleOk,
   SlugAvailability,
   Tenant,
@@ -419,7 +423,8 @@ export const useLogout = <TError = ErrorType<unknown>,
       return useMutation(getLogoutMutationOptions(options));
     }
 
-export const getListMessagesUrl = (params?: ListMessagesParams,) => {
+export const getListMessagesUrl = (slug: string,
+    params?: ListMessagesParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -431,15 +436,16 @@ export const getListMessagesUrl = (params?: ListMessagesParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/messages?${stringifiedParams}` : `/api/messages`
+  return stringifiedParams.length > 0 ? `/api/t/${slug}/messages?${stringifiedParams}` : `/api/t/${slug}/messages`
 }
 
 /**
- * @summary List all public tributes (cards and videos)
+ * @summary List all public tributes (cards and videos) for a tenant
  */
-export const listMessages = async (params?: ListMessagesParams, options?: RequestInit): Promise<Message[]> => {
+export const listMessages = async (slug: string,
+    params?: ListMessagesParams, options?: RequestInit): Promise<Message[]> => {
 
-  return customFetch<Message[]>(getListMessagesUrl(params),
+  return customFetch<Message[]>(getListMessagesUrl(slug,params),
   {
     ...options,
     method: 'GET'
@@ -452,29 +458,31 @@ export const listMessages = async (params?: ListMessagesParams, options?: Reques
 
 
 
-export const getListMessagesQueryKey = (params?: ListMessagesParams,) => {
+export const getListMessagesQueryKey = (slug: string,
+    params?: ListMessagesParams,) => {
     return [
-    `/api/messages`, ...(params ? [params] : [])
+    `/api/t/${slug}/messages`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListMessagesQueryOptions = <TData = Awaited<ReturnType<typeof listMessages>>, TError = ErrorType<unknown>>(params?: ListMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListMessagesQueryOptions = <TData = Awaited<ReturnType<typeof listMessages>>, TError = ErrorType<unknown>>(slug: string,
+    params?: ListMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListMessagesQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListMessagesQueryKey(slug,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMessages>>> = ({ signal }) => listMessages(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMessages>>> = ({ signal }) => listMessages(slug,params, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData> & { queryKey: QueryKey }
 }
 
 export type ListMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof listMessages>>>
@@ -482,15 +490,16 @@ export type ListMessagesQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List all public tributes (cards and videos)
+ * @summary List all public tributes (cards and videos) for a tenant
  */
 
 export function useListMessages<TData = Awaited<ReturnType<typeof listMessages>>, TError = ErrorType<unknown>>(
- params?: ListMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ slug: string,
+    params?: ListMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListMessagesQueryOptions(params,options)
+  const queryOptions = getListMessagesQueryOptions(slug,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -503,20 +512,21 @@ export function useListMessages<TData = Awaited<ReturnType<typeof listMessages>>
 
 
 
-export const getCreateMessageUrl = () => {
+export const getCreateMessageUrl = (slug: string,) => {
 
 
 
 
-  return `/api/messages`
+  return `/api/t/${slug}/messages`
 }
 
 /**
- * @summary Post a new tribute (card or video)
+ * @summary Post a new tribute (card, video, or link) for a tenant
  */
-export const createMessage = async (messageInput: MessageInput, options?: RequestInit): Promise<Message> => {
+export const createMessage = async (slug: string,
+    messageInput: MessageInput, options?: RequestInit): Promise<Message> => {
 
-  return customFetch<Message>(getCreateMessageUrl(),
+  return customFetch<Message>(getCreateMessageUrl(slug),
   {
     ...options,
     method: 'POST',
@@ -530,8 +540,8 @@ export const createMessage = async (messageInput: MessageInput, options?: Reques
 
 
 export const getCreateMessageMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMessage>>, TError,{data: BodyType<MessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createMessage>>, TError,{data: BodyType<MessageInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMessage>>, TError,{slug: string;data: BodyType<MessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMessage>>, TError,{slug: string;data: BodyType<MessageInput>}, TContext> => {
 
 const mutationKey = ['createMessage'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -543,10 +553,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMessage>>, {data: BodyType<MessageInput>}> = (props) => {
-          const {data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMessage>>, {slug: string;data: BodyType<MessageInput>}> = (props) => {
+          const {slug,data} = props ?? {};
 
-          return  createMessage(data,requestOptions)
+          return  createMessage(slug,data,requestOptions)
         }
 
 
@@ -561,30 +571,33 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateMessageMutationError = ErrorType<unknown>
 
     /**
- * @summary Post a new tribute (card or video)
+ * @summary Post a new tribute (card, video, or link) for a tenant
  */
 export const useCreateMessage = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMessage>>, TError,{data: BodyType<MessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMessage>>, TError,{slug: string;data: BodyType<MessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createMessage>>,
         TError,
-        {data: BodyType<MessageInput>},
+        {slug: string;data: BodyType<MessageInput>},
         TContext
       > => {
       return useMutation(getCreateMessageMutationOptions(options));
     }
 
-export const getGetMessageUrl = (id: number,) => {
+export const getGetMessageStatsUrl = (slug: string,) => {
 
 
 
 
-  return `/api/messages/${id}`
+  return `/api/t/${slug}/messages/stats`
 }
 
-export const getMessage = async (id: number, options?: RequestInit): Promise<Message> => {
+/**
+ * @summary Aggregate counts for a tenant's public wall
+ */
+export const getMessageStats = async (slug: string, options?: RequestInit): Promise<MessageStats> => {
 
-  return customFetch<Message>(getGetMessageUrl(id),
+  return customFetch<MessageStats>(getGetMessageStatsUrl(slug),
   {
     ...options,
     method: 'GET'
@@ -597,42 +610,45 @@ export const getMessage = async (id: number, options?: RequestInit): Promise<Mes
 
 
 
-export const getGetMessageQueryKey = (id: number,) => {
+export const getGetMessageStatsQueryKey = (slug: string,) => {
     return [
-    `/api/messages/${id}`
+    `/api/t/${slug}/messages/stats`
     ] as const;
     }
 
 
-export const getGetMessageQueryOptions = <TData = Awaited<ReturnType<typeof getMessage>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetMessageStatsQueryOptions = <TData = Awaited<ReturnType<typeof getMessageStats>>, TError = ErrorType<unknown>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessageStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetMessageQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getGetMessageStatsQueryKey(slug);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMessage>>> = ({ signal }) => getMessage(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMessageStats>>> = ({ signal }) => getMessageStats(slug, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMessage>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMessageStats>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetMessageQueryResult = NonNullable<Awaited<ReturnType<typeof getMessage>>>
-export type GetMessageQueryError = ErrorType<unknown>
+export type GetMessageStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getMessageStats>>>
+export type GetMessageStatsQueryError = ErrorType<unknown>
 
 
+/**
+ * @summary Aggregate counts for a tenant's public wall
+ */
 
-export function useGetMessage<TData = Awaited<ReturnType<typeof getMessage>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetMessageStats<TData = Awaited<ReturnType<typeof getMessageStats>>, TError = ErrorType<unknown>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessageStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetMessageQueryOptions(id,options)
+  const queryOptions = getGetMessageStatsQueryOptions(slug,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -645,21 +661,99 @@ export function useGetMessage<TData = Awaited<ReturnType<typeof getMessage>>, TE
 
 
 
-export const getUpdateMessageUrl = (id: number,) => {
+export const getGetMessageUrl = (slug: string,
+    id: number,) => {
 
 
 
 
-  return `/api/messages/${id}`
+  return `/api/t/${slug}/messages/${id}`
+}
+
+export const getMessage = async (slug: string,
+    id: number, options?: RequestInit): Promise<Message> => {
+
+  return customFetch<Message>(getGetMessageUrl(slug,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMessageQueryKey = (slug: string,
+    id: number,) => {
+    return [
+    `/api/t/${slug}/messages/${id}`
+    ] as const;
+    }
+
+
+export const getGetMessageQueryOptions = <TData = Awaited<ReturnType<typeof getMessage>>, TError = ErrorType<unknown>>(slug: string,
+    id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMessageQueryKey(slug,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMessage>>> = ({ signal }) => getMessage(slug,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(slug && id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMessage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMessageQueryResult = NonNullable<Awaited<ReturnType<typeof getMessage>>>
+export type GetMessageQueryError = ErrorType<unknown>
+
+
+
+export function useGetMessage<TData = Awaited<ReturnType<typeof getMessage>>, TError = ErrorType<unknown>>(
+ slug: string,
+    id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMessageQueryOptions(slug,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateMessageUrl = (slug: string,
+    id: number,) => {
+
+
+
+
+  return `/api/t/${slug}/messages/${id}`
 }
 
 /**
- * @summary Admin-only — edit any tribute
+ * @summary Owner/admin — edit any tribute
  */
-export const updateMessage = async (id: number,
+export const updateMessage = async (slug: string,
+    id: number,
     messageUpdate: MessageUpdate, options?: RequestInit): Promise<Message> => {
 
-  return customFetch<Message>(getUpdateMessageUrl(id),
+  return customFetch<Message>(getUpdateMessageUrl(slug,id),
   {
     ...options,
     method: 'PATCH',
@@ -673,8 +767,8 @@ export const updateMessage = async (id: number,
 
 
 export const getUpdateMessageMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{id: number;data: BodyType<MessageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{id: number;data: BodyType<MessageUpdate>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{slug: string;id: number;data: BodyType<MessageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{slug: string;id: number;data: BodyType<MessageUpdate>}, TContext> => {
 
 const mutationKey = ['updateMessage'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -686,10 +780,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMessage>>, {id: number;data: BodyType<MessageUpdate>}> = (props) => {
-          const {id,data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMessage>>, {slug: string;id: number;data: BodyType<MessageUpdate>}> = (props) => {
+          const {slug,id,data} = props ?? {};
 
-          return  updateMessage(id,data,requestOptions)
+          return  updateMessage(slug,id,data,requestOptions)
         }
 
 
@@ -704,33 +798,35 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateMessageMutationError = ErrorType<unknown>
 
     /**
- * @summary Admin-only — edit any tribute
+ * @summary Owner/admin — edit any tribute
  */
 export const useUpdateMessage = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{id: number;data: BodyType<MessageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{slug: string;id: number;data: BodyType<MessageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateMessage>>,
         TError,
-        {id: number;data: BodyType<MessageUpdate>},
+        {slug: string;id: number;data: BodyType<MessageUpdate>},
         TContext
       > => {
       return useMutation(getUpdateMessageMutationOptions(options));
     }
 
-export const getDeleteMessageUrl = (id: number,) => {
+export const getDeleteMessageUrl = (slug: string,
+    id: number,) => {
 
 
 
 
-  return `/api/messages/${id}`
+  return `/api/t/${slug}/messages/${id}`
 }
 
 /**
- * @summary Admin-only — delete any tribute
+ * @summary Owner/admin — delete any tribute
  */
-export const deleteMessage = async (id: number, options?: RequestInit): Promise<SimpleOk> => {
+export const deleteMessage = async (slug: string,
+    id: number, options?: RequestInit): Promise<SimpleOk> => {
 
-  return customFetch<SimpleOk>(getDeleteMessageUrl(id),
+  return customFetch<SimpleOk>(getDeleteMessageUrl(slug,id),
   {
     ...options,
     method: 'DELETE'
@@ -743,8 +839,8 @@ export const deleteMessage = async (id: number, options?: RequestInit): Promise<
 
 
 export const getDeleteMessageMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,{id: number}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,{slug: string;id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,{slug: string;id: number}, TContext> => {
 
 const mutationKey = ['deleteMessage'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -756,10 +852,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMessage>>, {id: number}> = (props) => {
-          const {id} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMessage>>, {slug: string;id: number}> = (props) => {
+          const {slug,id} = props ?? {};
 
-          return  deleteMessage(id,requestOptions)
+          return  deleteMessage(slug,id,requestOptions)
         }
 
 
@@ -774,33 +870,33 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteMessageMutationError = ErrorType<unknown>
 
     /**
- * @summary Admin-only — delete any tribute
+ * @summary Owner/admin — delete any tribute
  */
 export const useDeleteMessage = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,{slug: string;id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteMessage>>,
         TError,
-        {id: number},
+        {slug: string;id: number},
         TContext
       > => {
       return useMutation(getDeleteMessageMutationOptions(options));
     }
 
-export const getGetMessageStatsUrl = () => {
+export const getGetReachUrl = (slug: string,) => {
 
 
 
 
-  return `/api/messages/stats`
+  return `/api/t/${slug}/reach`
 }
 
 /**
- * @summary Aggregate counts for the public wall
+ * @summary Tenant reach graph — nodes, edges, and summary
  */
-export const getMessageStats = async ( options?: RequestInit): Promise<MessageStats> => {
+export const getReach = async (slug: string, options?: RequestInit): Promise<ReachGraph> => {
 
-  return customFetch<MessageStats>(getGetMessageStatsUrl(),
+  return customFetch<ReachGraph>(getGetReachUrl(slug),
   {
     ...options,
     method: 'GET'
@@ -813,45 +909,45 @@ export const getMessageStats = async ( options?: RequestInit): Promise<MessageSt
 
 
 
-export const getGetMessageStatsQueryKey = () => {
+export const getGetReachQueryKey = (slug: string,) => {
     return [
-    `/api/messages/stats`
+    `/api/t/${slug}/reach`
     ] as const;
     }
 
 
-export const getGetMessageStatsQueryOptions = <TData = Awaited<ReturnType<typeof getMessageStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessageStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetReachQueryOptions = <TData = Awaited<ReturnType<typeof getReach>>, TError = ErrorType<unknown>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReach>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetMessageStatsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetReachQueryKey(slug);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMessageStats>>> = ({ signal }) => getMessageStats({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReach>>> = ({ signal }) => getReach(slug, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMessageStats>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReach>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetMessageStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getMessageStats>>>
-export type GetMessageStatsQueryError = ErrorType<unknown>
+export type GetReachQueryResult = NonNullable<Awaited<ReturnType<typeof getReach>>>
+export type GetReachQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Aggregate counts for the public wall
+ * @summary Tenant reach graph — nodes, edges, and summary
  */
 
-export function useGetMessageStats<TData = Awaited<ReturnType<typeof getMessageStats>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessageStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetReach<TData = Awaited<ReturnType<typeof getReach>>, TError = ErrorType<unknown>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReach>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetMessageStatsQueryOptions(options)
+  const queryOptions = getGetReachQueryOptions(slug,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -864,23 +960,169 @@ export function useGetMessageStats<TData = Awaited<ReturnType<typeof getMessageS
 
 
 
-export const getGetReachNetworkUrl = () => {
+export const getCreateReachNodeUrl = (slug: string,) => {
 
 
 
 
-  return `/api/reach/nodes`
+  return `/api/t/${slug}/reach/nodes`
 }
 
 /**
- * @summary Curated list of places, projects, and communities touched by Luis's work
+ * @summary Add a node to the tenant reach graph (auth required)
  */
-export const getReachNetwork = async ( options?: RequestInit): Promise<ReachNetwork> => {
+export const createReachNode = async (slug: string,
+    reachNodeInput: ReachNodeInput, options?: RequestInit): Promise<ReachNode> => {
 
-  return customFetch<ReachNetwork>(getGetReachNetworkUrl(),
+  return customFetch<ReachNode>(getCreateReachNodeUrl(slug),
   {
     ...options,
-    method: 'GET'
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reachNodeInput,)
+  }
+);}
+
+
+
+
+export const getCreateReachNodeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReachNode>>, TError,{slug: string;data: BodyType<ReachNodeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReachNode>>, TError,{slug: string;data: BodyType<ReachNodeInput>}, TContext> => {
+
+const mutationKey = ['createReachNode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReachNode>>, {slug: string;data: BodyType<ReachNodeInput>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  createReachNode(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReachNodeMutationResult = NonNullable<Awaited<ReturnType<typeof createReachNode>>>
+    export type CreateReachNodeMutationBody = BodyType<ReachNodeInput>
+    export type CreateReachNodeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a node to the tenant reach graph (auth required)
+ */
+export const useCreateReachNode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReachNode>>, TError,{slug: string;data: BodyType<ReachNodeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReachNode>>,
+        TError,
+        {slug: string;data: BodyType<ReachNodeInput>},
+        TContext
+      > => {
+      return useMutation(getCreateReachNodeMutationOptions(options));
+    }
+
+export const getCreateReachEdgeUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/reach/edges`
+}
+
+/**
+ * @summary Add an edge to the tenant reach graph (auth required)
+ */
+export const createReachEdge = async (slug: string,
+    reachEdgeInput: ReachEdgeInput, options?: RequestInit): Promise<ReachEdge> => {
+
+  return customFetch<ReachEdge>(getCreateReachEdgeUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reachEdgeInput,)
+  }
+);}
+
+
+
+
+export const getCreateReachEdgeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReachEdge>>, TError,{slug: string;data: BodyType<ReachEdgeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReachEdge>>, TError,{slug: string;data: BodyType<ReachEdgeInput>}, TContext> => {
+
+const mutationKey = ['createReachEdge'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReachEdge>>, {slug: string;data: BodyType<ReachEdgeInput>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  createReachEdge(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReachEdgeMutationResult = NonNullable<Awaited<ReturnType<typeof createReachEdge>>>
+    export type CreateReachEdgeMutationBody = BodyType<ReachEdgeInput>
+    export type CreateReachEdgeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add an edge to the tenant reach graph (auth required)
+ */
+export const useCreateReachEdge = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReachEdge>>, TError,{slug: string;data: BodyType<ReachEdgeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReachEdge>>,
+        TError,
+        {slug: string;data: BodyType<ReachEdgeInput>},
+        TContext
+      > => {
+      return useMutation(getCreateReachEdgeMutationOptions(options));
+    }
+
+export const getDeleteReachNodeUrl = (slug: string,
+    id: number,) => {
+
+
+
+
+  return `/api/t/${slug}/reach/nodes/${id}`
+}
+
+/**
+ * @summary Delete a reach node (owner/admin only)
+ */
+export const deleteReachNode = async (slug: string,
+    id: number, options?: RequestInit): Promise<SimpleOk> => {
+
+  return customFetch<SimpleOk>(getDeleteReachNodeUrl(slug,id),
+  {
+    ...options,
+    method: 'DELETE'
 
 
   }
@@ -889,57 +1131,122 @@ export const getReachNetwork = async ( options?: RequestInit): Promise<ReachNetw
 
 
 
+export const getDeleteReachNodeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReachNode>>, TError,{slug: string;id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteReachNode>>, TError,{slug: string;id: number}, TContext> => {
 
-export const getGetReachNetworkQueryKey = () => {
-    return [
-    `/api/reach/nodes`
-    ] as const;
+const mutationKey = ['deleteReachNode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteReachNode>>, {slug: string;id: number}> = (props) => {
+          const {slug,id} = props ?? {};
+
+          return  deleteReachNode(slug,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteReachNodeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteReachNode>>>
+
+    export type DeleteReachNodeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a reach node (owner/admin only)
+ */
+export const useDeleteReachNode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReachNode>>, TError,{slug: string;id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteReachNode>>,
+        TError,
+        {slug: string;id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteReachNodeMutationOptions(options));
     }
 
-
-export const getGetReachNetworkQueryOptions = <TData = Awaited<ReturnType<typeof getReachNetwork>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReachNetwork>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetReachNetworkQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReachNetwork>>> = ({ signal }) => getReachNetwork({ signal, ...requestOptions });
+export const getDeleteReachEdgeUrl = (slug: string,
+    id: number,) => {
 
 
 
 
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReachNetwork>>, TError, TData> & { queryKey: QueryKey }
+  return `/api/t/${slug}/reach/edges/${id}`
 }
-
-export type GetReachNetworkQueryResult = NonNullable<Awaited<ReturnType<typeof getReachNetwork>>>
-export type GetReachNetworkQueryError = ErrorType<unknown>
-
 
 /**
- * @summary Curated list of places, projects, and communities touched by Luis's work
+ * @summary Delete a reach edge (owner/admin only)
  */
+export const deleteReachEdge = async (slug: string,
+    id: number, options?: RequestInit): Promise<SimpleOk> => {
 
-export function useGetReachNetwork<TData = Awaited<ReturnType<typeof getReachNetwork>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReachNetwork>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+  return customFetch<SimpleOk>(getDeleteReachEdgeUrl(slug,id),
+  {
+    ...options,
+    method: 'DELETE'
 
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetReachNetworkQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
+  }
+);}
 
 
 
 
+export const getDeleteReachEdgeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReachEdge>>, TError,{slug: string;id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteReachEdge>>, TError,{slug: string;id: number}, TContext> => {
 
+const mutationKey = ['deleteReachEdge'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteReachEdge>>, {slug: string;id: number}> = (props) => {
+          const {slug,id} = props ?? {};
+
+          return  deleteReachEdge(slug,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteReachEdgeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteReachEdge>>>
+
+    export type DeleteReachEdgeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a reach edge (owner/admin only)
+ */
+export const useDeleteReachEdge = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReachEdge>>, TError,{slug: string;id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteReachEdge>>,
+        TError,
+        {slug: string;id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteReachEdgeMutationOptions(options));
+    }
 
 export const getListTenantsUrl = () => {
 

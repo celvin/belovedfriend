@@ -76,20 +76,24 @@ export const LogoutResponse = zod.object({
 
 
 /**
- * @summary List all public tributes (cards and videos)
+ * @summary List all public tributes (cards and videos) for a tenant
  */
+export const ListMessagesParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
 export const listMessagesQueryLimitMax = 200;
 
 
 
 export const ListMessagesQueryParams = zod.object({
-  "type": zod.enum(['all', 'card', 'video']).optional(),
+  "type": zod.enum(['all', 'card', 'video', 'link']).optional(),
   "limit": zod.coerce.number().min(1).max(listMessagesQueryLimitMax).optional()
 })
 
 export const ListMessagesResponseItem = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['card', 'video']),
+  "type": zod.enum(['card', 'video', 'link']),
   "body": zod.string().nullish(),
   "authorName": zod.string(),
   "relationship": zod.string().nullish(),
@@ -108,19 +112,25 @@ export const ListMessagesResponseItem = zod.object({
   "layout": zod.enum(['center', 'top', 'bottom', 'side']).optional(),
   "decoration": zod.string().optional().describe('Optional decorative motif id')
 }).describe('Customization payload for a card tribute'),zod.null()]).optional(),
+  "url": zod.string().nullish().describe('URL for link-type tributes'),
+  "nodeId": zod.number().nullish().describe('Attached reach graph node id'),
   "createdAt": zod.coerce.date()
 })
 export const ListMessagesResponse = zod.array(ListMessagesResponseItem)
 
 
 /**
- * @summary Post a new tribute (card or video)
+ * @summary Post a new tribute (card, video, or link) for a tenant
  */
+export const CreateMessageParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
 export const CreateMessageBody = zod.object({
-  "type": zod.enum(['card', 'video']),
+  "type": zod.enum(['card', 'video', 'link']),
   "body": zod.string().optional().describe('Plain text body (used for card messages and video captions)'),
   "authorName": zod.string().optional(),
-  "relationship": zod.string().optional().describe('How the author knew Luis (colleague, friend, family, client, etc.)'),
+  "relationship": zod.string().optional().describe('How the author knew the person being memorialized (colleague, friend, family, client, etc.)'),
   "location": zod.string().optional(),
   "videoPath": zod.string().nullish().describe('Storage object path for an uploaded recorded video (required when type = video)'),
   "photoPath": zod.string().nullish().describe('Optional cover photo path'),
@@ -135,17 +145,37 @@ export const CreateMessageBody = zod.object({
   "photoPath": zod.string().nullish().describe('Optional storage object path for an uploaded photo'),
   "layout": zod.enum(['center', 'top', 'bottom', 'side']).optional(),
   "decoration": zod.string().optional().describe('Optional decorative motif id')
-}).describe('Customization payload for a card tribute'),zod.null()]).optional()
+}).describe('Customization payload for a card tribute'),zod.null()]).optional(),
+  "url": zod.string().optional().describe('URL for link-type tributes'),
+  "nodeId": zod.number().optional().describe('Optional reach graph node to attach this tribute to')
+})
+
+
+/**
+ * @summary Aggregate counts for a tenant's public wall
+ */
+export const GetMessageStatsParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetMessageStatsResponse = zod.object({
+  "total": zod.number(),
+  "cards": zod.number(),
+  "videos": zod.number(),
+  "contributors": zod.number(),
+  "countries": zod.number(),
+  "recentAuthors": zod.array(zod.string()).optional()
 })
 
 
 export const GetMessageParams = zod.object({
+  "slug": zod.coerce.string(),
   "id": zod.coerce.number()
 })
 
 export const GetMessageResponse = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['card', 'video']),
+  "type": zod.enum(['card', 'video', 'link']),
   "body": zod.string().nullish(),
   "authorName": zod.string(),
   "relationship": zod.string().nullish(),
@@ -164,14 +194,17 @@ export const GetMessageResponse = zod.object({
   "layout": zod.enum(['center', 'top', 'bottom', 'side']).optional(),
   "decoration": zod.string().optional().describe('Optional decorative motif id')
 }).describe('Customization payload for a card tribute'),zod.null()]).optional(),
+  "url": zod.string().nullish().describe('URL for link-type tributes'),
+  "nodeId": zod.number().nullish().describe('Attached reach graph node id'),
   "createdAt": zod.coerce.date()
 })
 
 
 /**
- * @summary Admin-only — edit any tribute
+ * @summary Owner/admin — edit any tribute
  */
 export const UpdateMessageParams = zod.object({
+  "slug": zod.coerce.string(),
   "id": zod.coerce.number()
 })
 
@@ -184,7 +217,7 @@ export const UpdateMessageBody = zod.object({
 
 export const UpdateMessageResponse = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['card', 'video']),
+  "type": zod.enum(['card', 'video', 'link']),
   "body": zod.string().nullish(),
   "authorName": zod.string(),
   "relationship": zod.string().nullish(),
@@ -203,14 +236,17 @@ export const UpdateMessageResponse = zod.object({
   "layout": zod.enum(['center', 'top', 'bottom', 'side']).optional(),
   "decoration": zod.string().optional().describe('Optional decorative motif id')
 }).describe('Customization payload for a card tribute'),zod.null()]).optional(),
+  "url": zod.string().nullish().describe('URL for link-type tributes'),
+  "nodeId": zod.number().nullish().describe('Attached reach graph node id'),
   "createdAt": zod.coerce.date()
 })
 
 
 /**
- * @summary Admin-only — delete any tribute
+ * @summary Owner/admin — delete any tribute
  */
 export const DeleteMessageParams = zod.object({
+  "slug": zod.coerce.string(),
   "id": zod.coerce.number()
 })
 
@@ -221,44 +257,86 @@ export const DeleteMessageResponse = zod.object({
 
 
 /**
- * @summary Aggregate counts for the public wall
+ * @summary Tenant reach graph — nodes, edges, and summary
  */
-export const GetMessageStatsResponse = zod.object({
-  "total": zod.number(),
-  "cards": zod.number(),
-  "videos": zod.number(),
-  "contributors": zod.number(),
-  "countries": zod.number(),
-  "recentAuthors": zod.array(zod.string()).optional()
+export const GetReachParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetReachResponse = zod.object({
+  "nodes": zod.array(zod.object({
+  "id": zod.number(),
+  "label": zod.string(),
+  "category": zod.string(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional(),
+  "note": zod.string().optional(),
+  "isAnchor": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "edges": zod.array(zod.object({
+  "id": zod.number(),
+  "sourceNodeId": zod.number(),
+  "targetNodeId": zod.number()
+})),
+  "summary": zod.record(zod.string(), zod.unknown())
 })
 
 
 /**
- * @summary Curated list of places, projects, and communities touched by Luis's work
+ * @summary Add a node to the tenant reach graph (auth required)
  */
-export const GetReachNetworkResponse = zod.object({
-  "nodes": zod.array(zod.object({
-  "id": zod.string(),
-  "label": zod.string(),
-  "category": zod.enum(['project', 'city', 'agency', 'community', 'team', 'wonder']),
-  "weight": zod.number().optional(),
-  "lat": zod.number().nullish(),
-  "lng": zod.number().nullish(),
-  "note": zod.string().nullish()
-})),
-  "edges": zod.array(zod.object({
-  "source": zod.string(),
-  "target": zod.string()
-})),
-  "summary": zod.object({
-  "projects": zod.number(),
-  "agencies": zod.number(),
-  "cities": zod.number(),
-  "livesTouched": zod.number(),
-  "yearsOfService": zod.number().optional(),
-  "teamSize": zod.number().optional(),
-  "wonders": zod.number().optional()
+export const CreateReachNodeParams = zod.object({
+  "slug": zod.coerce.string()
 })
+
+export const CreateReachNodeBody = zod.object({
+  "label": zod.string(),
+  "category": zod.string(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional(),
+  "note": zod.string().optional()
+})
+
+
+/**
+ * @summary Add an edge to the tenant reach graph (auth required)
+ */
+export const CreateReachEdgeParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const CreateReachEdgeBody = zod.object({
+  "sourceNodeId": zod.number(),
+  "targetNodeId": zod.number()
+})
+
+
+/**
+ * @summary Delete a reach node (owner/admin only)
+ */
+export const DeleteReachNodeParams = zod.object({
+  "slug": zod.coerce.string(),
+  "id": zod.coerce.number()
+})
+
+export const DeleteReachNodeResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Delete a reach edge (owner/admin only)
+ */
+export const DeleteReachEdgeParams = zod.object({
+  "slug": zod.coerce.string(),
+  "id": zod.coerce.number()
+})
+
+export const DeleteReachEdgeResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string().optional()
 })
 
 
