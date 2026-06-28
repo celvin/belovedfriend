@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  useRequestUploadUrl,
   useCreateMessage,
   useGetCurrentUser,
   MessageInputType,
@@ -12,15 +11,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Square, RefreshCcw, Video as VideoIcon } from "lucide-react";
+import { uploadFile } from "@/lib/upload";
+
+const MAX_VIDEO_BYTES = 18 * 1024 * 1024; // 18 MB
 
 interface Props {
+  slug: string;
   defaultLocation?: string;
   contextLabel?: string;
   onSaved?: () => void;
   onCancel?: () => void;
 }
 
-export function InlineVideoRecorder({ defaultLocation = "", contextLabel, onSaved, onCancel }: Props) {
+export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, onSaved, onCancel }: Props) {
   const { data: currentUser, isLoading: authLoading } = useGetCurrentUser();
   const isAuthenticated = currentUser?.authenticated ?? false;
 
@@ -38,7 +41,6 @@ export function InlineVideoRecorder({ defaultLocation = "", contextLabel, onSave
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const requestUpload = useRequestUploadUrl();
   const createMessage = useCreateMessage();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -85,7 +87,7 @@ export function InlineVideoRecorder({ defaultLocation = "", contextLabel, onSave
           A quick email link confirms it's you, then your camera opens right here.
         </p>
         <div className="flex gap-2">
-          <Link href="/sign-in" className="text-xs font-medium text-primary hover:underline">
+          <Link href={`/sign-in?slug=${slug}&intent=compose`} className="text-xs font-medium text-primary hover:underline">
             Sign in →
           </Link>
           {onCancel && (
@@ -145,16 +147,20 @@ export function InlineVideoRecorder({ defaultLocation = "", contextLabel, onSave
 
   const handleSave = async () => {
     if (!recordedBlob || !authorName.trim()) return;
+
+    if (recordedBlob.size > MAX_VIDEO_BYTES) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "Video must be under 18 MB. Please re-record a shorter clip.",
+      });
+      return;
+    }
+
     try {
-      const { uploadURL, objectPath } = await requestUpload.mutateAsync({
-        data: { name: `video-${Date.now()}.webm`, contentType: "video/webm", size: recordedBlob.size },
-      });
-      await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": "video/webm" },
-        body: recordedBlob,
-      });
+      const objectPath = await uploadFile(recordedBlob, "video/webm");
       await createMessage.mutateAsync({
+        slug,
         data: {
           type: MessageInputType.video,
           videoPath: objectPath,
@@ -163,7 +169,7 @@ export function InlineVideoRecorder({ defaultLocation = "", contextLabel, onSave
           location: locationInput.trim() || undefined,
         },
       });
-      await queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
       toast({ title: "Tribute saved", description: "Your video is now part of the wall." });
       onSaved?.();
     } catch {
@@ -175,7 +181,7 @@ export function InlineVideoRecorder({ defaultLocation = "", contextLabel, onSave
     }
   };
 
-  const isSaving = requestUpload.isPending || createMessage.isPending;
+  const isSaving = createMessage.isPending;
   const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
   return (

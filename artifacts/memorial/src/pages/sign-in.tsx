@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
-import { useRequestMagicLink, useVerifyMagicLink } from "@workspace/api-client-react";
+import { useRequestMagicLink, useVerifyMagicLink, MagicLinkRequestIntent } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,26 +17,39 @@ export default function SignIn() {
   const verifyLink = useVerifyMagicLink();
   const { toast } = useToast();
 
+  // Parse slug + intent from query string
+  const searchParams = new URLSearchParams(searchString);
+  const slugParam = searchParams.get("slug") ?? undefined;
+  const intentParam = searchParams.get("intent") ?? undefined;
+
+  // Validate intent against the enum
+  const intent: MagicLinkRequestIntent | undefined =
+    intentParam && Object.values(MagicLinkRequestIntent).includes(intentParam as MagicLinkRequestIntent)
+      ? (intentParam as MagicLinkRequestIntent)
+      : undefined;
+
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
-      setLocation("/compose");
+      const dest = slugParam ? `/${slugParam}` : "/dashboard";
+      setLocation(dest);
     }
-  }, [isAuthenticated, authLoading, setLocation]);
+  }, [isAuthenticated, authLoading, setLocation, slugParam]);
 
   const verifiedTokenRef = useRef<string | null>(null);
   const verifyMutate = verifyLink.mutate;
   useEffect(() => {
-    const searchParams = new URLSearchParams(searchString);
-    const token = searchParams.get("token");
+    const params = new URLSearchParams(searchString);
+    const token = params.get("token");
     if (!token) return;
     if (verifiedTokenRef.current === token) return;
     verifiedTokenRef.current = token;
     verifyMutate(
       { data: { token } },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           toast({ title: "Welcome back", description: "Successfully signed in." });
-          setLocation("/compose");
+          // Navigate to the server-computed redirect, falling back to /dashboard
+          setLocation(data.redirectTo || "/dashboard");
         },
         onError: () => {
           toast({
@@ -53,9 +66,15 @@ export default function SignIn() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    
+
     requestLink.mutate(
-      { data: { email } },
+      {
+        data: {
+          email,
+          ...(slugParam ? { slug: slugParam } : {}),
+          ...(intent ? { intent } : {}),
+        },
+      },
       {
         onSuccess: () => {
           setSubmitted(true);
@@ -77,7 +96,7 @@ export default function SignIn() {
 
   return (
     <div className="flex-1 flex items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md bg-card p-8 md:p-12 rounded-2xl shadow-xl border border-border/40 text-center"
@@ -116,8 +135,8 @@ export default function SignIn() {
                 className="h-12 bg-background"
               />
             </div>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full h-12 text-lg font-serif rounded-xl"
               disabled={requestLink.isPending}
             >
