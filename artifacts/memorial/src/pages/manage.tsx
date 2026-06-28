@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 export default function Manage() {
   const slug = useTenantSlug() ?? "";
   const { isAdmin, isAuthenticated } = useAuth();
-  const { data: mine } = useListMyTenants({
+  const { data: mine, isLoading: mineLoading } = useListMyTenants({
     query: { enabled: isAuthenticated, queryKey: getListMyTenantsQueryKey() },
   });
   const { data: tenant, isLoading: tenantLoading } = useGetTenant(slug, {
@@ -159,8 +159,9 @@ export default function Manage() {
     );
   }
 
-  // Loading ownership check
-  if (tenantLoading) {
+  // Loading ownership check — wait for the owned-pages list too, so a
+  // legitimate non-admin owner never sees a "Not authorized" flash.
+  if (tenantLoading || (isAuthenticated && !isAdmin && mineLoading)) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="font-serif italic text-muted-foreground animate-pulse">Loading…</div>
