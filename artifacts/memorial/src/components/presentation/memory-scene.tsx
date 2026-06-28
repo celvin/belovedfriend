@@ -5,6 +5,7 @@ import { PALETTE } from "@/components/presentation/constants";
 interface Props {
   message: Message;
   muted: boolean;
+  reduceMotion?: boolean;
   /** Called when a video finishes — the engine advances to the next scene. */
   onEnded: () => void;
 }
@@ -26,7 +27,7 @@ function Caption({ heading, sub }: { heading?: string | null; sub?: string | nul
   );
 }
 
-export function MemoryScene({ message, muted, onEnded }: Props) {
+export function MemoryScene({ message, muted, reduceMotion = false, onEnded }: Props) {
   const who = [message.authorName, message.relationship, message.location].filter(Boolean).join(" · ");
   const cardBody = (message.card as { body?: string } | null | undefined)?.body;
   const text = cardBody || message.body || "";
@@ -53,8 +54,8 @@ export function MemoryScene({ message, muted, onEnded }: Props) {
         <motion.img
           src={`/api${message.photoPath}`}
           alt=""
-          initial={{ scale: 1.05 }}
-          animate={{ scale: 1.16 }}
+          initial={{ scale: reduceMotion ? 1 : 1.05 }}
+          animate={{ scale: reduceMotion ? 1 : 1.16 }}
           transition={{ duration: 7.5, ease: "linear" }}
           className="h-full w-full object-cover"
         />

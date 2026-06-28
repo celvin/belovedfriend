@@ -3,7 +3,6 @@ import { geoNaturalEarth1, geoPath, type GeoPermissibleObjects } from "d3-geo";
 import { feature } from "topojson-client";
 import { motion } from "framer-motion";
 import { Starfield } from "@/components/starfield";
-import { PALETTE } from "@/components/presentation/constants";
 
 type AnyFeature = { type: "Feature"; geometry: unknown };
 let cachedFeatures: AnyFeature[] | null = null;
@@ -30,11 +29,14 @@ interface Props {
   width: number;
   height: number;
   accent: string;
+  /** Total time the journey scene is on screen — the plane is paced to fit it. */
+  durationMs?: number;
+  reduceMotion?: boolean;
 }
 
-const PER_SEGMENT_MS = 1600;
+const MAX_FALLBACK_SEGMENTS = 14;
 
-export function JourneyScene({ nodes, edges, width, height, accent }: Props) {
+export function JourneyScene({ nodes, edges, width, height, accent, durationMs = 13000, reduceMotion = false }: Props) {
   const [features, setFeatures] = useState<AnyFeature[] | null>(cachedFeatures);
   useEffect(() => {
     if (!features) loadWorld().then(setFeatures).catch(() => {});
@@ -68,13 +70,16 @@ export function JourneyScene({ nodes, edges, width, height, accent }: Props) {
         segs.push({ sx: s.x, sy: s.y, tx: t.x, ty: t.y, label: t.label });
       }
     } else {
-      const pts = Array.from(plotted.values());
+      const pts = Array.from(plotted.values()).slice(0, MAX_FALLBACK_SEGMENTS + 1);
       for (let i = 0; i < pts.length - 1; i++) {
         segs.push({ sx: pts[i].x, sy: pts[i].y, tx: pts[i + 1].x, ty: pts[i + 1].y, label: pts[i + 1].label });
       }
     }
     return segs;
   }, [edges, plotted]);
+
+  // Pace the plane so the whole tour fits the scene's on-screen time.
+  const perSegmentMs = segments.length ? Math.max(700, durationMs / segments.length) : durationMs;
 
   // Animate the plane across segments via requestAnimationFrame.
   const [seg, setSeg] = useState(0);
@@ -88,7 +93,7 @@ export function JourneyScene({ nodes, edges, width, height, accent }: Props) {
     setT(0);
     const tick = (now: number) => {
       if (startTs === null) startTs = now;
-      let localT = (now - startTs) / PER_SEGMENT_MS;
+      let localT = (now - startTs) / perSegmentMs;
       if (localT >= 1) {
         if (cur >= segments.length - 1) {
           setSeg(cur);
@@ -107,7 +112,7 @@ export function JourneyScene({ nodes, edges, width, height, accent }: Props) {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [segments]);
+  }, [segments, perSegmentMs]);
 
   const active = segments[seg];
   let plane: { x: number; y: number; angle: number } | null = null;
@@ -123,15 +128,15 @@ export function JourneyScene({ nodes, edges, width, height, accent }: Props) {
   }
 
   return (
-    <div className="absolute inset-0" style={{ background: PALETTE.ink }}>
+    <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, #0d1018, #070809)" }}>
       <Starfield count={70} />
       <motion.svg
         width={width}
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         className="absolute inset-0 h-full w-full"
-        initial={{ scale: 1.04 }}
-        animate={{ scale: 1.14 }}
+        initial={{ scale: reduceMotion ? 1 : 1.04 }}
+        animate={{ scale: reduceMotion ? 1 : 1.14 }}
         transition={{ duration: 16, ease: "linear" }}
         style={{ transformOrigin: "50% 50%" }}
       >
@@ -141,7 +146,7 @@ export function JourneyScene({ nodes, edges, width, height, accent }: Props) {
               const d = pathGen(f as GeoPermissibleObjects);
               if (!d) return null;
               return (
-                <path key={i} d={d} fill={PALETTE.land} fillOpacity={0.6} stroke={accent} strokeOpacity={0.18} strokeWidth={0.4} />
+                <path key={i} d={d} fill="#4a3a25" fillOpacity={0.92} stroke="#caa05f" strokeOpacity={0.3} strokeWidth={0.5} />
               );
             })}
           </g>
