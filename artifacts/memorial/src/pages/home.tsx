@@ -193,8 +193,7 @@ export default function Home() {
                   </h2>
                 </motion.div>
 
-                {/* @ts-expect-error — ReachNetwork will accept slug prop after Task 4 */}
-                <ReachNetwork slug={slug} />
+                <ReachNetwork slug={slug ?? ""} />
 
                 <div className="text-center pt-8 md:pt-12">
                   <Link href={`/${slug}/compose`}>
