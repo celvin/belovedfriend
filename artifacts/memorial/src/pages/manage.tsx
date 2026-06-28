@@ -8,11 +8,15 @@ import {
   useUpdateTenant,
   useListMyTenants,
   useGetTenant,
+  useListBlocks,
+  useCreateBlock,
+  useDeleteBlock,
   getListMessagesQueryKey,
   getGetTenantQueryKey,
   getListMyTenantsQueryKey,
+  getListBlocksQueryKey,
 } from "@workspace/api-client-react";
-import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp, ShieldOff, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenantSlug } from "@/lib/tenant";
 import { Button } from "@/components/ui/button";
@@ -59,6 +63,36 @@ export default function Manage() {
   const [metaSuccess, setMetaSuccess] = useState(false);
 
   const updateTenant = useUpdateTenant();
+
+  // Blocks
+  const { data: blocks, isLoading: blocksLoading } = useListBlocks(slug, {
+    query: {
+      enabled: !!slug && isOwner,
+      queryKey: getListBlocksQueryKey(slug),
+    },
+  });
+
+  const createBlock = useCreateBlock();
+  const deleteBlock = useDeleteBlock();
+
+  function handleBlock(userId: number) {
+    if (!confirm("Block this author? They will no longer be able to post on this page.")) return;
+    createBlock.mutate({ slug, data: { userId } }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListBlocksQueryKey(slug) });
+        queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
+      },
+    });
+  }
+
+  function handleUnblock(userId: number) {
+    if (!confirm("Unblock this user?")) return;
+    deleteBlock.mutate({ slug, userId }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListBlocksQueryKey(slug) });
+      },
+    });
+  }
 
   function handleOpenEditMeta() {
     if (tenant) {
@@ -361,15 +395,74 @@ export default function Manage() {
                     {new Date(m.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                <button
+                <div className="shrink-0 flex items-center gap-1">
+                  {m.userId != null && (
+                    <button
+                      type="button"
+                      onClick={() => handleBlock(m.userId!)}
+                      disabled={createBlock.isPending}
+                      className="p-1.5 rounded text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition"
+                      aria-label="Block author"
+                      title="Block author"
+                    >
+                      <ShieldOff size={14} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(m.id)}
+                    disabled={deleteMessage.isPending}
+                    className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                    aria-label="Delete tribute"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Blocked accounts */}
+      <section className="space-y-4">
+        <h2 className="font-serif text-xl flex items-center gap-2">
+          <ShieldCheck size={18} /> Blocked accounts
+        </h2>
+        {blocksLoading && (
+          <p className="font-serif italic text-muted-foreground animate-pulse">Loading…</p>
+        )}
+        {!blocksLoading && (!blocks || blocks.length === 0) && (
+          <p className="font-serif italic text-muted-foreground">No blocked accounts.</p>
+        )}
+        {blocks && blocks.length > 0 && (
+          <ul className="space-y-3">
+            {blocks.map((b) => (
+              <li
+                key={b.userId}
+                className="flex items-center justify-between gap-3 bg-card border border-border/30 rounded-lg px-4 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {b.name ?? b.email ?? `User #${b.userId}`}
+                  </p>
+                  {b.email && b.name && (
+                    <p className="text-xs text-muted-foreground truncate">{b.email}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                    Blocked {new Date(b.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <Button
                   type="button"
-                  onClick={() => handleDelete(m.id)}
-                  disabled={deleteMessage.isPending}
-                  className="shrink-0 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
-                  aria-label="Delete tribute"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleUnblock(b.userId)}
+                  disabled={deleteBlock.isPending}
+                  className="shrink-0 rounded-full font-serif text-xs"
                 >
-                  <Trash2 size={14} />
-                </button>
+                  Unblock
+                </Button>
               </li>
             ))}
           </ul>
