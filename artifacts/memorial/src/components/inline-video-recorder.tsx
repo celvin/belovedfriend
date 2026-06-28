@@ -34,6 +34,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
   const [authorName, setAuthorName] = useState("");
   const [relationship, setRelationship] = useState("");
   const [locationInput, setLocationInput] = useState(defaultLocation);
+  const [busy, setBusy] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -147,6 +148,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
 
   const handleSave = async () => {
     if (!recordedBlob || !authorName.trim()) return;
+    if (busy) return;
 
     if (recordedBlob.size > MAX_VIDEO_BYTES) {
       toast({
@@ -157,6 +159,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
       return;
     }
 
+    setBusy(true);
     try {
       const objectPath = await uploadFile(recordedBlob, "video/webm");
       await createMessage.mutateAsync({
@@ -178,10 +181,12 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
         title: "Couldn't save",
         description: "Something went wrong uploading. Please try again.",
       });
+    } finally {
+      setBusy(false);
     }
   };
 
-  const isSaving = createMessage.isPending;
+  const isSaving = busy || createMessage.isPending;
   const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
   return (

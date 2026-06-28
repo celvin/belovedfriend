@@ -75,6 +75,7 @@ export default function Create() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (createTenant.isPending) return;
 
     const slug = slugInput.trim().toLowerCase();
     if (!slug || !friendName.trim()) return;

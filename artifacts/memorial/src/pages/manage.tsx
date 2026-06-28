@@ -391,6 +391,7 @@ export default function Manage() {
 
   function handleAddLink(e: React.FormEvent) {
     e.preventDefault();
+    if (createMessage.isPending) return;
     setLinkError(null);
     if (!linkUrl.trim()) {
       setLinkError("URL is required");

@@ -30,6 +30,8 @@ export function VideoRecorder({ slug, nodeId }: Props) {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [busy, setBusy] = useState(false);
+
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -111,12 +113,14 @@ export function VideoRecorder({ slug, nodeId }: Props) {
 
   const handleSave = async () => {
     if (!recordedBlob || !authorName) return;
+    if (busy) return;
 
     if (recordedBlob.size > MAX_VIDEO_BYTES) {
       toast({ variant: "destructive", title: "File too large", description: "Video must be under 18 MB. Please re-record a shorter clip." });
       return;
     }
 
+    setBusy(true);
     try {
       // 1. Upload file
       const objectPath = await uploadFile(recordedBlob, "video/webm");
@@ -139,6 +143,8 @@ export function VideoRecorder({ slug, nodeId }: Props) {
 
     } catch {
       toast({ variant: "destructive", title: "Upload Failed", description: "There was an error saving your tribute." });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -148,7 +154,7 @@ export function VideoRecorder({ slug, nodeId }: Props) {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const isSaving = createMessage.isPending;
+  const isSaving = busy || createMessage.isPending;
 
   return (
     <div className="max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16">
