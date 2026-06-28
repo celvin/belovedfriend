@@ -13,6 +13,11 @@
   "engines": {
     "node": ">=22"
   },
+  "dependencies": {
+    "@netlify/blobs": "^10.7.9",
+    "jsonwebtoken": "9.0.2",
+    "serverless-http": "^3.2.0"
+  },
   "devDependencies": {
     "prettier": "^3.8.3",
     "typescript": "~5.9.3"
