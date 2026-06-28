@@ -588,6 +588,8 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
       case "nodeCount": return String(numFromSummary("nodeCount") ?? data.nodes.length);
       case "placeCount": return String(numFromSummary("placeCount") ?? 0);
       case "contributorCount": return String(numFromSummary("contributorCount") ?? 0);
+      case "edgeCount": return String(numFromSummary("edgeCount") ?? data.edges.length);
+      // Legacy: countryCount was offered before but never computed server-side.
       case "countryCount": return String(numFromSummary("countryCount") ?? 0);
       default: return "";
     }

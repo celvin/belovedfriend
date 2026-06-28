@@ -67,7 +67,7 @@ const DERIVED_OPTIONS = [
   { value: "nodeCount", label: "Node count" },
   { value: "placeCount", label: "Place count" },
   { value: "contributorCount", label: "Contributor count" },
-  { value: "countryCount", label: "Country count" },
+  { value: "edgeCount", label: "Connections" },
 ] as const;
 
 function buildPageConfig(settings: PageSettingsState): TenantUpdatePageConfig {
