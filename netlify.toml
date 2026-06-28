@@ -10,6 +10,20 @@
   PORT = "4173"
   NPM_FLAGS = "--version" # opt out of Netlify's default npm install — pnpm runs in `command`
 
+# Blobs upload endpoint — native function, bypasses the Express catch-all.
+[[redirects]]
+  from = "/api/uploads"
+  to = "/.netlify/functions/upload"
+  status = 200
+  force = true
+
+# Blobs media serve endpoint — native function, bypasses the Express catch-all.
+[[redirects]]
+  from = "/api/objects/*"
+  to = "/.netlify/functions/media/:splat"
+  status = 200
+  force = true
+
 # Serve the API from the in-repo Netlify Function (replaces the Railway proxy).
 # Same-origin, so the JWT session cookie (HttpOnly, SameSite=lax) keeps working.
 [[redirects]]
