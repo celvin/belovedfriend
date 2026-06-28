@@ -114,6 +114,7 @@ export const ListMessagesResponseItem = zod.object({
 }).describe('Customization payload for a card tribute'),zod.null()]).optional(),
   "url": zod.string().nullish().describe('URL for link-type tributes'),
   "nodeId": zod.number().nullish().describe('Attached reach graph node id'),
+  "userId": zod.number().nullish().describe('Author\'s user id (owner-scoped)'),
   "createdAt": zod.coerce.date()
 })
 export const ListMessagesResponse = zod.array(ListMessagesResponseItem)
@@ -196,6 +197,7 @@ export const GetMessageResponse = zod.object({
 }).describe('Customization payload for a card tribute'),zod.null()]).optional(),
   "url": zod.string().nullish().describe('URL for link-type tributes'),
   "nodeId": zod.number().nullish().describe('Attached reach graph node id'),
+  "userId": zod.number().nullish().describe('Author\'s user id (owner-scoped)'),
   "createdAt": zod.coerce.date()
 })
 
@@ -238,6 +240,7 @@ export const UpdateMessageResponse = zod.object({
 }).describe('Customization payload for a card tribute'),zod.null()]).optional(),
   "url": zod.string().nullish().describe('URL for link-type tributes'),
   "nodeId": zod.number().nullish().describe('Attached reach graph node id'),
+  "userId": zod.number().nullish().describe('Author\'s user id (owner-scoped)'),
   "createdAt": zod.coerce.date()
 })
 
@@ -337,6 +340,79 @@ export const DeleteReachEdgeParams = zod.object({
 export const DeleteReachEdgeResponse = zod.object({
   "ok": zod.boolean(),
   "message": zod.string().optional()
+})
+
+
+/**
+ * @summary List blocked users for a tenant (owner only)
+ */
+export const ListBlocksParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const ListBlocksResponseItem = zod.object({
+  "userId": zod.number(),
+  "email": zod.string().optional(),
+  "name": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListBlocksResponse = zod.array(ListBlocksResponseItem)
+
+
+/**
+ * @summary Block a user from a tenant (owner only)
+ */
+export const CreateBlockParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const CreateBlockBody = zod.object({
+  "userId": zod.number()
+})
+
+export const CreateBlockResponse = zod.object({
+  "userId": zod.number(),
+  "email": zod.string().optional(),
+  "name": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Unblock a user from a tenant (owner only)
+ */
+export const DeleteBlockParams = zod.object({
+  "slug": zod.coerce.string(),
+  "userId": zod.coerce.number()
+})
+
+export const DeleteBlockResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Super-admin — suspend or reactivate a tenant
+ */
+export const AdminUpdateTenantParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const AdminUpdateTenantBody = zod.object({
+  "status": zod.enum(['active', 'suspended'])
+})
+
+export const AdminUpdateTenantResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "status": zod.enum(['active', 'suspended']),
+  "pageConfig": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
 })
 
 

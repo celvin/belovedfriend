@@ -13,6 +13,8 @@ tags:
   - name: messages
   - name: reach
   - name: tenants
+  - name: blocks
+  - name: admin
 paths:
   /healthz:
     get:
@@ -316,6 +318,93 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SimpleOk" }
 
+  /t/{slug}/blocks:
+    get:
+      operationId: listBlocks
+      tags: [blocks]
+      summary: List blocked users for a tenant (owner only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of blocked users
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BlockedUser" }
+    post:
+      operationId: createBlock
+      tags: [blocks]
+      summary: Block a user from a tenant (owner only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBlockBody" }
+      responses:
+        "201":
+          description: User blocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlockedUser" }
+        "200":
+          description: User was already blocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlockedUser" }
+
+  /t/{slug}/blocks/{userId}:
+    delete:
+      operationId: deleteBlock
+      tags: [blocks]
+      summary: Unblock a user from a tenant (owner only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Unblocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /admin/tenants/{slug}:
+    patch:
+      operationId: adminUpdateTenant
+      tags: [admin]
+      summary: Super-admin — suspend or reactivate a tenant
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminTenantUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+
   /tenants:
     get:
       operationId: listTenants
@@ -578,6 +667,7 @@ components:
             - { type: "null" }
         url: { type: ["string", "null"], description: "URL for link-type tributes" }
         nodeId: { type: ["integer", "null"], description: "Attached reach graph node id" }
+        userId: { type: ["integer", "null"], description: "Author's user id (owner-scoped)" }
         createdAt: { type: string, format: date-time }
 
     MessageUpdate:
@@ -709,4 +799,27 @@ components:
       properties:
         slug: { type: string }
         available: { type: boolean }
+
+    BlockedUser:
+      type: object
+      required: [userId, createdAt]
+      properties:
+        userId: { type: integer }
+        email: { type: string }
+        name: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+
+    CreateBlockBody:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: integer }
+
+    AdminTenantUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, suspended]
 

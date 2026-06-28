@@ -168,6 +168,11 @@ export interface Message {
      * @nullable
      */
   nodeId?: number | null;
+  /**
+     * Author's user id (owner-scoped)
+     * @nullable
+     */
+  userId?: number | null;
   createdAt: string;
 }
 
@@ -284,6 +289,30 @@ export interface TenantUpdate {
 export interface SlugAvailability {
   slug: string;
   available: boolean;
+}
+
+export interface BlockedUser {
+  userId: number;
+  email?: string;
+  /** @nullable */
+  name?: string | null;
+  createdAt: string;
+}
+
+export interface CreateBlockBody {
+  userId: number;
+}
+
+export type AdminTenantUpdateStatus = typeof AdminTenantUpdateStatus[keyof typeof AdminTenantUpdateStatus];
+
+
+export const AdminTenantUpdateStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface AdminTenantUpdate {
+  status: AdminTenantUpdateStatus;
 }
 
 export type ListMessagesParams = {

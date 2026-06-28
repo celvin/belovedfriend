@@ -20,7 +20,10 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminTenantUpdate,
   AuthSession,
+  BlockedUser,
+  CreateBlockBody,
   CurrentUser,
   HealthStatus,
   ListMessagesParams,
@@ -1244,6 +1247,299 @@ export const useDeleteReachEdge = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteReachEdgeMutationOptions(options));
+    }
+
+export const getListBlocksUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/blocks`
+}
+
+/**
+ * @summary List blocked users for a tenant (owner only)
+ */
+export const listBlocks = async (slug: string, options?: RequestInit): Promise<BlockedUser[]> => {
+
+  return customFetch<BlockedUser[]>(getListBlocksUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBlocksQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/blocks`
+    ] as const;
+    }
+
+
+export const getListBlocksQueryOptions = <TData = Awaited<ReturnType<typeof listBlocks>>, TError = ErrorType<unknown>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBlocks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBlocksQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBlocks>>> = ({ signal }) => listBlocks(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBlocks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBlocksQueryResult = NonNullable<Awaited<ReturnType<typeof listBlocks>>>
+export type ListBlocksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List blocked users for a tenant (owner only)
+ */
+
+export function useListBlocks<TData = Awaited<ReturnType<typeof listBlocks>>, TError = ErrorType<unknown>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBlocks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBlocksQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateBlockUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/blocks`
+}
+
+/**
+ * @summary Block a user from a tenant (owner only)
+ */
+export const createBlock = async (slug: string,
+    createBlockBody: CreateBlockBody, options?: RequestInit): Promise<BlockedUser> => {
+
+  return customFetch<BlockedUser>(getCreateBlockUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createBlockBody,)
+  }
+);}
+
+
+
+
+export const getCreateBlockMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBlock>>, TError,{slug: string;data: BodyType<CreateBlockBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBlock>>, TError,{slug: string;data: BodyType<CreateBlockBody>}, TContext> => {
+
+const mutationKey = ['createBlock'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBlock>>, {slug: string;data: BodyType<CreateBlockBody>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  createBlock(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBlockMutationResult = NonNullable<Awaited<ReturnType<typeof createBlock>>>
+    export type CreateBlockMutationBody = BodyType<CreateBlockBody>
+    export type CreateBlockMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Block a user from a tenant (owner only)
+ */
+export const useCreateBlock = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBlock>>, TError,{slug: string;data: BodyType<CreateBlockBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBlock>>,
+        TError,
+        {slug: string;data: BodyType<CreateBlockBody>},
+        TContext
+      > => {
+      return useMutation(getCreateBlockMutationOptions(options));
+    }
+
+export const getDeleteBlockUrl = (slug: string,
+    userId: number,) => {
+
+
+
+
+  return `/api/t/${slug}/blocks/${userId}`
+}
+
+/**
+ * @summary Unblock a user from a tenant (owner only)
+ */
+export const deleteBlock = async (slug: string,
+    userId: number, options?: RequestInit): Promise<SimpleOk> => {
+
+  return customFetch<SimpleOk>(getDeleteBlockUrl(slug,userId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteBlockMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBlock>>, TError,{slug: string;userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBlock>>, TError,{slug: string;userId: number}, TContext> => {
+
+const mutationKey = ['deleteBlock'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBlock>>, {slug: string;userId: number}> = (props) => {
+          const {slug,userId} = props ?? {};
+
+          return  deleteBlock(slug,userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBlockMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBlock>>>
+
+    export type DeleteBlockMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Unblock a user from a tenant (owner only)
+ */
+export const useDeleteBlock = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBlock>>, TError,{slug: string;userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBlock>>,
+        TError,
+        {slug: string;userId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteBlockMutationOptions(options));
+    }
+
+export const getAdminUpdateTenantUrl = (slug: string,) => {
+
+
+
+
+  return `/api/admin/tenants/${slug}`
+}
+
+/**
+ * @summary Super-admin — suspend or reactivate a tenant
+ */
+export const adminUpdateTenant = async (slug: string,
+    adminTenantUpdate: AdminTenantUpdate, options?: RequestInit): Promise<Tenant> => {
+
+  return customFetch<Tenant>(getAdminUpdateTenantUrl(slug),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminTenantUpdate,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateTenantMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateTenant>>, TError,{slug: string;data: BodyType<AdminTenantUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateTenant>>, TError,{slug: string;data: BodyType<AdminTenantUpdate>}, TContext> => {
+
+const mutationKey = ['adminUpdateTenant'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateTenant>>, {slug: string;data: BodyType<AdminTenantUpdate>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  adminUpdateTenant(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateTenantMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateTenant>>>
+    export type AdminUpdateTenantMutationBody = BodyType<AdminTenantUpdate>
+    export type AdminUpdateTenantMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Super-admin — suspend or reactivate a tenant
+ */
+export const useAdminUpdateTenant = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateTenant>>, TError,{slug: string;data: BodyType<AdminTenantUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateTenant>>,
+        TError,
+        {slug: string;data: BodyType<AdminTenantUpdate>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateTenantMutationOptions(options));
     }
 
 export const getListTenantsUrl = () => {
