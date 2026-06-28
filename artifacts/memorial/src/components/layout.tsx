@@ -13,6 +13,44 @@ function useCurrentSlug(): string | undefined {
   return firstSegment || undefined;
 }
 
+// "#rrggbb" → the "H S% L%" triplet our CSS variables expect (they wrap it in hsl()).
+function hexToHslTriplet(hex: string): string | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const int = parseInt(m[1], 16);
+  const r = ((int >> 16) & 255) / 255;
+  const g = ((int >> 8) & 255) / 255;
+  const b = (int & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0;
+  let s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+  }
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+}
+
+// Build the owner's chosen theme (accent colour + font) as CSS-variable overrides
+// applied to the whole tenant subtree.
+function buildThemeStyle(theme?: Record<string, unknown>): React.CSSProperties | undefined {
+  if (!theme) return undefined;
+  const style: Record<string, string> = {};
+  if (typeof theme.accent === "string") {
+    const triplet = hexToHslTriplet(theme.accent);
+    if (triplet) style["--primary"] = triplet;
+  }
+  if (theme.font === "sans") style["--app-font-serif"] = "var(--app-font-sans)";
+  else if (theme.font === "handwritten") style["--app-font-serif"] = "var(--app-font-handwriting)";
+  return Object.keys(style).length ? (style as React.CSSProperties) : undefined;
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAdmin, logout, isLoggingOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -45,9 +83,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const heroConfig = (tenant?.pageConfig as Record<string, unknown> | undefined)?.hero as Record<string, unknown> | undefined;
   const heroPhotoPath = heroConfig?.heroPhotoPath as string | undefined;
+  const themeConfig = (tenant?.pageConfig as Record<string, unknown> | undefined)?.theme as Record<string, unknown> | undefined;
+  const themeStyle = isPlatform ? undefined : buildThemeStyle(themeConfig);
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background text-foreground font-sans">
+    <div className="min-h-[100dvh] flex flex-col bg-background text-foreground font-sans" style={themeStyle}>
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link

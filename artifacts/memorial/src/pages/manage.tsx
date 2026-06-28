@@ -6,6 +6,7 @@ import {
   useDeleteMessage,
   useCreateMessage,
   useUpdateTenant,
+  useDeleteTenant,
   useListMyTenants,
   useGetTenant,
   useListBlocks,
@@ -66,7 +67,7 @@ const DERIVED_OPTIONS = [
   { value: "nodeCount", label: "Node count" },
   { value: "placeCount", label: "Place count" },
   { value: "contributorCount", label: "Contributor count" },
-  { value: "countryCount", label: "Country count" },
+  { value: "edgeCount", label: "Connections" },
 ] as const;
 
 function buildPageConfig(settings: PageSettingsState): TenantUpdatePageConfig {
@@ -195,6 +196,28 @@ export default function Manage() {
   const [metaSuccess, setMetaSuccess] = useState(false);
 
   const updateTenant = useUpdateTenant();
+
+  // Delete page (tenant)
+  const deleteTenant = useDeleteTenant();
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  function handleDeletePage() {
+    if (deleteConfirmText.trim() !== slug) return;
+    setDeleteError(null);
+    deleteTenant.mutate(
+      { slug },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListMyTenantsQueryKey() });
+          queryClient.removeQueries({ queryKey: getGetTenantQueryKey(slug) });
+          setLocation("/");
+        },
+        onError: () => setDeleteError("Failed to delete the page. Please try again."),
+      },
+    );
+  }
 
   // Blocks
   const { data: blocks, isLoading: blocksLoading } = useListBlocks(slug, {
@@ -1211,6 +1234,63 @@ export default function Manage() {
 
       </div>
       </div>
+
+      {/* Danger zone */}
+      <section className="border border-destructive/40 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 bg-destructive/5">
+          <h2 className="font-serif text-xl text-destructive flex items-center gap-2">
+            <Trash2 size={18} /> Delete this page
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Permanently removes <span className="font-medium">{tenant?.friendName ?? slug}</span> and
+            every tribute, photo, message, and map marker on it. This cannot be undone.
+          </p>
+        </div>
+        <div className="px-5 py-4 border-t border-destructive/20">
+          {!showDelete ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full font-serif border-destructive/50 text-destructive hover:bg-destructive/10"
+              onClick={() => { setShowDelete(true); setDeleteConfirmText(""); setDeleteError(null); }}
+            >
+              Delete page…
+            </Button>
+          ) : (
+            <div className="space-y-3 max-w-md">
+              <label className="block text-sm text-foreground">
+                Type the page address <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-destructive">{slug}</code> to confirm:
+              </label>
+              <input
+                className="w-full border border-destructive/50 rounded-md px-3 py-2 text-sm bg-background"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={slug}
+                autoFocus
+              />
+              {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  className="rounded-full font-serif bg-destructive text-white hover:bg-destructive/90"
+                  disabled={deleteConfirmText.trim() !== slug || deleteTenant.isPending}
+                  onClick={handleDeletePage}
+                >
+                  {deleteTenant.isPending ? "Deleting…" : "Permanently delete"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="rounded-full font-serif"
+                  onClick={() => { setShowDelete(false); setDeleteConfirmText(""); setDeleteError(null); }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

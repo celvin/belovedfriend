@@ -2,7 +2,10 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { desc, eq } from "drizzle-orm";
 import { CreateTenantBody, UpdateTenantBody } from "@workspace/api-zod";
 import { db } from "@workspace/db";
-import { tenantsTable, reachNodesTable, type TenantRow } from "@workspace/db/schema";
+import {
+  tenantsTable, reachNodesTable, reachEdgesTable, messagesTable, tenantBlocksTable,
+  type TenantRow,
+} from "@workspace/db/schema";
 import { getSession, requireAuth } from "../lib/session";
 import {
   isValidSlug, isReservedSlug, defaultPageConfig, resolveTenant,
@@ -108,6 +111,26 @@ router.patch("/tenants/:slug", requireOwner, async (req: Request, res: Response)
   const updated = await db.update(tenantsTable).set(patch)
     .where(eq(tenantsTable.id, tenant.id)).returning();
   res.json(serialize(updated[0]!));
+});
+
+// Permanently delete a tenant and everything attached to it. Owner/admin only.
+// FKs to the tenant are not ON DELETE CASCADE, so remove dependents in order
+// inside a transaction before deleting the tenant row.
+router.delete("/tenants/:slug", requireOwner, async (req: Request, res: Response) => {
+  const tenant = getTenantFromReq(req)!;
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(messagesTable).where(eq(messagesTable.tenantId, tenant.id));
+      await tx.delete(reachEdgesTable).where(eq(reachEdgesTable.tenantId, tenant.id));
+      await tx.delete(reachNodesTable).where(eq(reachNodesTable.tenantId, tenant.id));
+      await tx.delete(tenantBlocksTable).where(eq(tenantBlocksTable.tenantId, tenant.id));
+      await tx.delete(tenantsTable).where(eq(tenantsTable.id, tenant.id));
+    });
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    req.log.error({ err }, "deleteTenant error");
+    res.status(500).json({ error: "Failed to delete the page" });
+  }
 });
 
 export default router;

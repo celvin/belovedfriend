@@ -55,11 +55,19 @@ export default function Home() {
   const storyConfig = (config.story ?? {}) as Record<string, unknown>;
 
   const showDates = heroConfig.showDates !== false;
-  const tributeLabel = (ctaConfig.tributeLabel as string | undefined) ?? "Leave a Tribute";
+  // The editor saves `primaryLabel`; keep a fallback to the legacy `tributeLabel`.
+  const tributeLabel =
+    (ctaConfig.primaryLabel as string | undefined) ??
+    (ctaConfig.tributeLabel as string | undefined) ??
+    "Leave a Tribute";
   const wallLabel = (ctaConfig.wallLabel as string | undefined) ?? "Read Tributes";
   const reachLabel = (ctaConfig.reachLabel as string | undefined) ?? "Explore Their Reach";
 
-  const sectionOrder = (sectionsConfig.order as string[] | undefined) ?? ["story", "reach"];
+  const sectionOrder = (sectionsConfig.order as string[] | undefined) ?? ["story", "wall", "reach"];
+  // Per-section visibility toggles (default visible unless explicitly false).
+  const showStory = sectionsConfig.story !== false && storyConfig.enabled !== false;
+  const showWall = sectionsConfig.wall !== false;
+  const showReach = sectionsConfig.reach !== false;
   const storyBlocks = (storyConfig.blocks as Array<{ heading?: string; body: string }> | undefined) ?? [];
 
   const friendName = tenant.friendName;
@@ -133,7 +141,7 @@ export default function Home() {
 
       {/* Dynamic Sections */}
       {sectionOrder.map((section) => {
-        if (section === "story" && storyBlocks.length > 0) {
+        if (section === "story" && showStory && storyBlocks.length > 0) {
           return (
             <section key="story" className="py-12 md:py-24 px-4">
               <div className="container mx-auto max-w-3xl space-y-12">
@@ -160,7 +168,7 @@ export default function Home() {
           );
         }
 
-        if (section === "wall") {
+        if (section === "wall" && showWall) {
           return (
             <section key="wall" className="py-12 md:py-16 px-4 text-center bg-muted/20 border-y border-border/20">
               <motion.div
@@ -187,7 +195,7 @@ export default function Home() {
           );
         }
 
-        if (section === "reach") {
+        if (section === "reach" && showReach) {
           return (
             <section key="reach" id="reach" className="scroll-mt-20 py-12 md:py-24 px-4 bg-muted/30 border-y border-border/30">
               <div className="container mx-auto max-w-6xl">

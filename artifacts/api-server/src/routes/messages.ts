@@ -291,6 +291,7 @@ router.patch("/t/:slug/messages/:id", requireAuth, async (req: Request, res: Res
   if (d.authorName !== undefined) patch.authorName = d.authorName;
   if (d.relationship !== undefined) patch.relationship = d.relationship;
   if (d.location !== undefined) patch.location = d.location;
+  if (d.photoPath !== undefined) patch.photoPath = d.photoPath;
   if (d.card !== undefined) patch.card = d.card;
   if (d.url !== undefined) patch.url = d.url;
   try {

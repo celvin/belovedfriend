@@ -215,6 +215,7 @@ export const UpdateMessageBody = zod.object({
   "authorName": zod.string().optional(),
   "relationship": zod.string().nullish(),
   "location": zod.string().nullish(),
+  "photoPath": zod.string().nullish(),
   "card": zod.record(zod.string(), zod.unknown()).optional(),
   "url": zod.string().optional()
 }).describe('Admin patch payload — all fields optional')
@@ -504,6 +505,19 @@ export const UpdateTenantResponse = zod.object({
   "status": zod.enum(['active', 'suspended']),
   "pageConfig": zod.record(zod.string(), zod.unknown()),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Permanently delete a tenant and all its content (owner or admin)
+ */
+export const DeleteTenantParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const DeleteTenantResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string().optional()
 })
 
 
