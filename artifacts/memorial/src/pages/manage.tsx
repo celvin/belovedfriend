@@ -69,6 +69,41 @@ const DERIVED_OPTIONS = [
   { value: "countryCount", label: "Country count" },
 ] as const;
 
+function buildPageConfig(settings: PageSettingsState): TenantUpdatePageConfig {
+  return {
+    version: 1 as const,
+    theme: {
+      palette: settings.palette,
+      accent: settings.accent,
+      font: settings.font,
+    },
+    hero: {
+      heroPhotoPath: settings.heroPhotoPath,
+      showDates: settings.showDates,
+    },
+    story: {
+      enabled: settings.storyEnabled,
+      blocks: settings.storyBlocks.map((b) => ({ heading: b.heading, body: b.body })),
+    },
+    sections: {
+      order: settings.sectionsOrder,
+      story: settings.sectionStory,
+      wall: settings.sectionWall,
+      reach: settings.sectionReach,
+    },
+    reachSummary: settings.reachSummary.map((r) => {
+      if (r.mode === "derived") {
+        return { label: r.label, derived: r.derived };
+      }
+      return { label: r.label, value: r.value };
+    }),
+    cta: {
+      primaryLabel: settings.primaryLabel,
+      wallLabel: settings.wallLabel,
+    },
+  };
+}
+
 function buildDefaultSettings(cfg: Record<string, unknown>): PageSettingsState {
   const themeCfg = ((cfg.theme ?? {}) as Record<string, unknown>);
   const heroCfg = ((cfg.hero ?? {}) as Record<string, unknown>);
@@ -217,40 +252,9 @@ export default function Manage() {
       const objectPath = await uploadFile(file, file.type);
       setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: objectPath } : prev);
       // Auto-save: assemble config with the new heroPhotoPath (use objectPath directly, not state)
-      const assembled = {
-        version: 1 as const,
-        theme: {
-          palette: pageSettings.palette,
-          accent: pageSettings.accent,
-          font: pageSettings.font,
-        },
-        hero: {
-          heroPhotoPath: objectPath,
-          showDates: pageSettings.showDates,
-        },
-        story: {
-          enabled: pageSettings.storyEnabled,
-          blocks: pageSettings.storyBlocks.map((b) => ({ heading: b.heading, body: b.body })),
-        },
-        sections: {
-          order: pageSettings.sectionsOrder,
-          story: pageSettings.sectionStory,
-          wall: pageSettings.sectionWall,
-          reach: pageSettings.sectionReach,
-        },
-        reachSummary: pageSettings.reachSummary.map((r) => {
-          if (r.mode === "derived") {
-            return { label: r.label, derived: r.derived };
-          }
-          return { label: r.label, value: r.value };
-        }),
-        cta: {
-          primaryLabel: pageSettings.primaryLabel,
-          wallLabel: pageSettings.wallLabel,
-        },
-      };
+      const updatedSettings = { ...pageSettings, heroPhotoPath: objectPath };
       updateTenant.mutate(
-        { slug, data: { pageConfig: assembled as TenantUpdatePageConfig } },
+        { slug, data: { pageConfig: buildPageConfig(updatedSettings) } },
         {
           onSuccess: () => {
             setHeroSaved(true);
@@ -263,7 +267,6 @@ export default function Manage() {
         },
       );
     } catch {
-      setPageSettingsError("Failed to upload hero photo.");
       setHeroError("Failed to upload photo.");
     } finally {
       setHeroUploading(false);
@@ -277,40 +280,9 @@ export default function Manage() {
     setHeroError(null);
     const newPath = null;
     setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: newPath } : prev);
-    const assembled = {
-      version: 1 as const,
-      theme: {
-        palette: pageSettings.palette,
-        accent: pageSettings.accent,
-        font: pageSettings.font,
-      },
-      hero: {
-        heroPhotoPath: newPath,
-        showDates: pageSettings.showDates,
-      },
-      story: {
-        enabled: pageSettings.storyEnabled,
-        blocks: pageSettings.storyBlocks.map((b) => ({ heading: b.heading, body: b.body })),
-      },
-      sections: {
-        order: pageSettings.sectionsOrder,
-        story: pageSettings.sectionStory,
-        wall: pageSettings.sectionWall,
-        reach: pageSettings.sectionReach,
-      },
-      reachSummary: pageSettings.reachSummary.map((r) => {
-        if (r.mode === "derived") {
-          return { label: r.label, derived: r.derived };
-        }
-        return { label: r.label, value: r.value };
-      }),
-      cta: {
-        primaryLabel: pageSettings.primaryLabel,
-        wallLabel: pageSettings.wallLabel,
-      },
-    };
+    const updatedSettings = { ...pageSettings, heroPhotoPath: newPath };
     updateTenant.mutate(
-      { slug, data: { pageConfig: assembled as TenantUpdatePageConfig } },
+      { slug, data: { pageConfig: buildPageConfig(updatedSettings) } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(slug) });
@@ -327,42 +299,8 @@ export default function Manage() {
     setPageSettingsError(null);
     setPageSettingsSaved(false);
 
-    // Assemble PageConfig object matching PageConfigSchema
-    const assembled = {
-      version: 1 as const,
-      theme: {
-        palette: pageSettings.palette,
-        accent: pageSettings.accent,
-        font: pageSettings.font,
-      },
-      hero: {
-        heroPhotoPath: pageSettings.heroPhotoPath,
-        showDates: pageSettings.showDates,
-      },
-      story: {
-        enabled: pageSettings.storyEnabled,
-        blocks: pageSettings.storyBlocks.map((b) => ({ heading: b.heading, body: b.body })),
-      },
-      sections: {
-        order: pageSettings.sectionsOrder,
-        story: pageSettings.sectionStory,
-        wall: pageSettings.sectionWall,
-        reach: pageSettings.sectionReach,
-      },
-      reachSummary: pageSettings.reachSummary.map((r) => {
-        if (r.mode === "derived") {
-          return { label: r.label, derived: r.derived };
-        }
-        return { label: r.label, value: r.value };
-      }),
-      cta: {
-        primaryLabel: pageSettings.primaryLabel,
-        wallLabel: pageSettings.wallLabel,
-      },
-    };
-
     updateTenant.mutate(
-      { slug, data: { pageConfig: assembled as TenantUpdatePageConfig } },
+      { slug, data: { pageConfig: buildPageConfig(pageSettings) } },
       {
         onSuccess: () => {
           setPageSettingsSaved(true);
