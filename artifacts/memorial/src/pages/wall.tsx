@@ -3,14 +3,20 @@ import { useListMessages, useGetMessageStats } from "@workspace/api-client-react
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
+import { Play, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useTenantSlug } from "@/lib/tenant";
+
+type FilterType = "all" | "card" | "video" | "link";
 
 export default function Wall() {
-  const [filter, setFilter] = useState<"all" | "card" | "video">("all");
-  const { data: messages, isLoading } = useListMessages({ type: filter !== "all" ? filter : undefined });
-  const { data: stats } = useGetMessageStats();
-  
+  const slug = useTenantSlug() ?? "";
+  const [filter, setFilter] = useState<FilterType>("all");
+  const { data: messages, isLoading } = useListMessages(slug, {
+    type: filter !== "all" ? filter : undefined,
+  });
+  const { data: stats } = useGetMessageStats(slug);
+
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
 
   return (
@@ -49,6 +55,14 @@ export default function Wall() {
             >
               Videos
             </Button>
+            <Button
+              variant={filter === "link" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter("link")}
+              className="rounded-full font-serif md:h-10 md:px-5"
+            >
+              Links
+            </Button>
           </div>
         </div>
       </div>
@@ -65,7 +79,7 @@ export default function Wall() {
             <p className="text-xl text-muted-foreground font-serif italic mb-6">
               No tributes found.
             </p>
-            <Link href="/compose">
+            <Link href={`/${slug}/compose`}>
               <Button className="font-serif rounded-full px-8">Be the first to leave a tribute</Button>
             </Link>
           </div>
@@ -80,7 +94,7 @@ export default function Wall() {
                 className="break-inside-avoid mb-6"
               >
                 {msg.type === "video" ? (
-                  <div 
+                  <div
                     className="bg-black/90 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow relative aspect-[3/4] group cursor-pointer"
                     onClick={() => setPlayingVideo(msg.videoPath!)}
                   >
@@ -89,42 +103,71 @@ export default function Wall() {
                         <Play className="w-6 h-6 text-white ml-1" />
                       </div>
                     </div>
-                    {/* Optional custom thumbnail could go here if we had one, for now just a dark gradient */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
                     <div className="absolute bottom-0 left-0 right-0 p-6 z-20 text-white">
                       <h3 className="font-serif text-xl mb-1">{msg.authorName}</h3>
                       <p className="text-sm text-white/70">{msg.relationship}</p>
                     </div>
                   </div>
+                ) : msg.type === "link" ? (
+                  <a
+                    href={msg.url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer border border-border/20 bg-card group"
+                  >
+                    <div className="p-8 flex flex-col gap-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-serif text-lg font-medium group-hover:text-primary transition-colors">
+                          {msg.authorName}
+                        </h3>
+                        <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1 group-hover:text-primary transition-colors" />
+                      </div>
+                      {msg.body && (
+                        <p className="text-muted-foreground text-sm leading-relaxed line-clamp-4 font-serif">
+                          {msg.body}
+                        </p>
+                      )}
+                      {msg.url && (
+                        <p className="text-xs text-primary/60 truncate mt-auto font-mono">
+                          {msg.url}
+                        </p>
+                      )}
+                    </div>
+                  </a>
                 ) : (
-                  <Link href={`/tribute/${msg.id}`}>
-                    <div 
+                  <Link href={`/${slug}/tribute/${msg.id}`}>
+                    <div
                       className="rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer border border-border/20 group"
-                      style={{ 
+                      style={{
                         background: msg.card?.background || "var(--card)",
-                        color: msg.card?.accent || "inherit"
+                        color: msg.card?.accent || "inherit",
                       }}
                     >
                       {msg.photoPath && (
                         <div className="w-full aspect-square overflow-hidden bg-black/5">
-                          <img 
-                            src={`/api/storage${msg.photoPath}`} 
-                            alt="" 
+                          <img
+                            src={`/api${msg.photoPath}`}
+                            alt=""
                             className="w-full h-full object-cover"
                           />
                         </div>
                       )}
                       <div className="p-8 flex flex-col gap-6">
-                        <p 
+                        <p
                           className="text-lg leading-relaxed opacity-90 line-clamp-6"
                           style={{
-                            fontFamily: msg.card?.font === "serif" ? "var(--font-serif)" : 
-                                       msg.card?.font === "handwritten" ? "var(--font-handwriting)" : "var(--font-sans)"
+                            fontFamily:
+                              msg.card?.font === "serif"
+                                ? "var(--font-serif)"
+                                : msg.card?.font === "handwritten"
+                                ? "var(--font-handwriting)"
+                                : "var(--font-sans)",
                           }}
                         >
                           {msg.card?.body || msg.body}
                         </p>
-                        
+
                         <div className="mt-auto pt-6 border-t border-current/10">
                           <h3 className="font-serif font-medium">{msg.authorName}</h3>
                           <p className="text-sm opacity-70 mt-1">{msg.relationship}</p>
@@ -142,10 +185,10 @@ export default function Wall() {
       <Dialog open={!!playingVideo} onOpenChange={(open) => !open && setPlayingVideo(null)}>
         <DialogContent className="max-w-4xl w-full p-0 bg-black border-none overflow-hidden h-[80vh] flex items-center justify-center">
           {playingVideo && (
-            <video 
-              src={`/api/storage${playingVideo}`} 
-              controls 
-              autoPlay 
+            <video
+              src={`/api${playingVideo}`}
+              controls
+              autoPlay
               className="max-w-full max-h-full object-contain"
             />
           )}
