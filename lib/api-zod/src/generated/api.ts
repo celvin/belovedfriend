@@ -260,6 +260,108 @@ export const GetReachNetworkResponse = zod.object({
 
 
 /**
+ * @summary Public directory of active tenants
+ */
+export const ListTenantsResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "tagline": zod.string().optional()
+})
+export const ListTenantsResponse = zod.array(ListTenantsResponseItem)
+
+
+/**
+ * @summary Claim a new tenant (memorial page)
+ */
+export const CreateTenantBody = zod.object({
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional()
+})
+
+
+/**
+ * @summary List tenants owned by the authenticated caller
+ */
+export const ListMyTenantsResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "status": zod.enum(['active', 'suspended']),
+  "pageConfig": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})
+export const ListMyTenantsResponse = zod.array(ListMyTenantsResponseItem)
+
+
+/**
+ * @summary Get a tenant by slug
+ */
+export const GetTenantParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetTenantResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "status": zod.enum(['active', 'suspended']),
+  "pageConfig": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a tenant (owner or admin)
+ */
+export const UpdateTenantParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const UpdateTenantBody = zod.object({
+  "friendName": zod.string().optional(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "pageConfig": zod.record(zod.string(), zod.unknown()).optional()
+}).describe('All fields optional')
+
+export const UpdateTenantResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "status": zod.enum(['active', 'suspended']),
+  "pageConfig": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Check if a slug is available
+ */
+export const CheckSlugAvailabilityParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const CheckSlugAvailabilityResponse = zod.object({
+  "slug": zod.string(),
+  "available": zod.boolean()
+})
+
+
+/**
  * @summary Request a presigned upload URL
  */
 export const RequestUploadUrlBody = zod.object({

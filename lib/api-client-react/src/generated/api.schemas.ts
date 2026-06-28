@@ -205,6 +205,61 @@ export interface ReachNetwork {
   summary: ReachSummary;
 }
 
+export type TenantStatus = typeof TenantStatus[keyof typeof TenantStatus];
+
+
+export const TenantStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export type TenantPageConfig = { [key: string]: unknown };
+
+export interface Tenant {
+  id: number;
+  slug: string;
+  friendName: string;
+  birthYear?: number;
+  deathYear?: number;
+  tagline?: string;
+  status: TenantStatus;
+  pageConfig: TenantPageConfig;
+  createdAt: string;
+}
+
+export interface TenantSummary {
+  id: number;
+  slug: string;
+  friendName: string;
+  tagline?: string;
+}
+
+export interface TenantInput {
+  slug: string;
+  friendName: string;
+  birthYear?: number;
+  deathYear?: number;
+  tagline?: string;
+}
+
+export type TenantUpdatePageConfig = { [key: string]: unknown };
+
+/**
+ * All fields optional
+ */
+export interface TenantUpdate {
+  friendName?: string;
+  birthYear?: number;
+  deathYear?: number;
+  tagline?: string;
+  pageConfig?: TenantUpdatePageConfig;
+}
+
+export interface SlugAvailability {
+  slug: string;
+  available: boolean;
+}
+
 export interface UploadUrlInput {
   name: string;
   size?: number;

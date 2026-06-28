@@ -13,6 +13,7 @@ tags:
   - name: messages
   - name: storage
   - name: reach
+  - name: tenants
 paths:
   /healthz:
     get:
@@ -198,6 +199,128 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ReachNetwork" }
+
+  /tenants:
+    get:
+      operationId: listTenants
+      tags: [tenants]
+      summary: Public directory of active tenants
+      responses:
+        "200":
+          description: A list of active tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TenantSummary" }
+    post:
+      operationId: createTenant
+      tags: [tenants]
+      summary: Claim a new tenant (memorial page)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+        "409":
+          description: Slug already taken
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+        "422":
+          description: Invalid or reserved slug
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /tenants/mine:
+    get:
+      operationId: listMyTenants
+      tags: [tenants]
+      summary: List tenants owned by the authenticated caller
+      responses:
+        "200":
+          description: Caller's owned tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Tenant" }
+
+  /tenants/{slug}:
+    get:
+      operationId: getTenant
+      tags: [tenants]
+      summary: Get a tenant by slug
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+    patch:
+      operationId: updateTenant
+      tags: [tenants]
+      summary: Update a tenant (owner or admin)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /tenants/{slug}/availability:
+    get:
+      operationId: checkSlugAvailability
+      tags: [tenants]
+      summary: Check if a slug is available
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Availability result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlugAvailability" }
 
   /storage/uploads/request-url:
     post:
@@ -410,6 +533,62 @@ components:
         yearsOfService: { type: integer }
         teamSize: { type: integer }
         wonders: { type: integer }
+
+    Tenant:
+      type: object
+      required: [id, slug, friendName, status, pageConfig, createdAt]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        friendName: { type: string }
+        birthYear: { type: integer }
+        deathYear: { type: integer }
+        tagline: { type: string }
+        status:
+          type: string
+          enum: [active, suspended]
+        pageConfig:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+
+    TenantSummary:
+      type: object
+      required: [id, slug, friendName]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        friendName: { type: string }
+        tagline: { type: string }
+
+    TenantInput:
+      type: object
+      required: [slug, friendName]
+      properties:
+        slug: { type: string }
+        friendName: { type: string }
+        birthYear: { type: integer }
+        deathYear: { type: integer }
+        tagline: { type: string }
+
+    TenantUpdate:
+      type: object
+      description: All fields optional
+      properties:
+        friendName: { type: string }
+        birthYear: { type: integer }
+        deathYear: { type: integer }
+        tagline: { type: string }
+        pageConfig:
+          type: object
+          additionalProperties: true
+
+    SlugAvailability:
+      type: object
+      required: [slug, available]
+      properties:
+        slug: { type: string }
+        available: { type: boolean }
 
     UploadUrlInput:
       type: object

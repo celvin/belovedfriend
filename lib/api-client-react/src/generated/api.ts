@@ -31,6 +31,11 @@ import type {
   MessageUpdate,
   ReachNetwork,
   SimpleOk,
+  SlugAvailability,
+  Tenant,
+  TenantInput,
+  TenantSummary,
+  TenantUpdate,
   UploadUrlInput,
   UploadUrlResponse,
   VerifyTokenInput
@@ -924,6 +929,457 @@ export function useGetReachNetwork<TData = Awaited<ReturnType<typeof getReachNet
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetReachNetworkQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListTenantsUrl = () => {
+
+
+
+
+  return `/api/tenants`
+}
+
+/**
+ * @summary Public directory of active tenants
+ */
+export const listTenants = async ( options?: RequestInit): Promise<TenantSummary[]> => {
+
+  return customFetch<TenantSummary[]>(getListTenantsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTenantsQueryKey = () => {
+    return [
+    `/api/tenants`
+    ] as const;
+    }
+
+
+export const getListTenantsQueryOptions = <TData = Awaited<ReturnType<typeof listTenants>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTenants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTenantsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTenants>>> = ({ signal }) => listTenants({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTenants>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTenantsQueryResult = NonNullable<Awaited<ReturnType<typeof listTenants>>>
+export type ListTenantsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Public directory of active tenants
+ */
+
+export function useListTenants<TData = Awaited<ReturnType<typeof listTenants>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTenants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTenantsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateTenantUrl = () => {
+
+
+
+
+  return `/api/tenants`
+}
+
+/**
+ * @summary Claim a new tenant (memorial page)
+ */
+export const createTenant = async (tenantInput: TenantInput, options?: RequestInit): Promise<Tenant> => {
+
+  return customFetch<Tenant>(getCreateTenantUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      tenantInput,)
+  }
+);}
+
+
+
+
+export const getCreateTenantMutationOptions = <TError = ErrorType<SimpleOk>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTenant>>, TError,{data: BodyType<TenantInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTenant>>, TError,{data: BodyType<TenantInput>}, TContext> => {
+
+const mutationKey = ['createTenant'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTenant>>, {data: BodyType<TenantInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTenant(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTenantMutationResult = NonNullable<Awaited<ReturnType<typeof createTenant>>>
+    export type CreateTenantMutationBody = BodyType<TenantInput>
+    export type CreateTenantMutationError = ErrorType<SimpleOk>
+
+    /**
+ * @summary Claim a new tenant (memorial page)
+ */
+export const useCreateTenant = <TError = ErrorType<SimpleOk>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTenant>>, TError,{data: BodyType<TenantInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTenant>>,
+        TError,
+        {data: BodyType<TenantInput>},
+        TContext
+      > => {
+      return useMutation(getCreateTenantMutationOptions(options));
+    }
+
+export const getListMyTenantsUrl = () => {
+
+
+
+
+  return `/api/tenants/mine`
+}
+
+/**
+ * @summary List tenants owned by the authenticated caller
+ */
+export const listMyTenants = async ( options?: RequestInit): Promise<Tenant[]> => {
+
+  return customFetch<Tenant[]>(getListMyTenantsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyTenantsQueryKey = () => {
+    return [
+    `/api/tenants/mine`
+    ] as const;
+    }
+
+
+export const getListMyTenantsQueryOptions = <TData = Awaited<ReturnType<typeof listMyTenants>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyTenants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyTenantsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyTenants>>> = ({ signal }) => listMyTenants({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyTenants>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyTenantsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyTenants>>>
+export type ListMyTenantsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List tenants owned by the authenticated caller
+ */
+
+export function useListMyTenants<TData = Awaited<ReturnType<typeof listMyTenants>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyTenants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyTenantsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetTenantUrl = (slug: string,) => {
+
+
+
+
+  return `/api/tenants/${slug}`
+}
+
+/**
+ * @summary Get a tenant by slug
+ */
+export const getTenant = async (slug: string, options?: RequestInit): Promise<Tenant> => {
+
+  return customFetch<Tenant>(getGetTenantUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTenantQueryKey = (slug: string,) => {
+    return [
+    `/api/tenants/${slug}`
+    ] as const;
+    }
+
+
+export const getGetTenantQueryOptions = <TData = Awaited<ReturnType<typeof getTenant>>, TError = ErrorType<SimpleOk>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenant>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTenantQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTenant>>> = ({ signal }) => getTenant(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTenant>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTenantQueryResult = NonNullable<Awaited<ReturnType<typeof getTenant>>>
+export type GetTenantQueryError = ErrorType<SimpleOk>
+
+
+/**
+ * @summary Get a tenant by slug
+ */
+
+export function useGetTenant<TData = Awaited<ReturnType<typeof getTenant>>, TError = ErrorType<SimpleOk>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenant>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTenantQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateTenantUrl = (slug: string,) => {
+
+
+
+
+  return `/api/tenants/${slug}`
+}
+
+/**
+ * @summary Update a tenant (owner or admin)
+ */
+export const updateTenant = async (slug: string,
+    tenantUpdate: TenantUpdate, options?: RequestInit): Promise<Tenant> => {
+
+  return customFetch<Tenant>(getUpdateTenantUrl(slug),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      tenantUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateTenantMutationOptions = <TError = ErrorType<SimpleOk>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenant>>, TError,{slug: string;data: BodyType<TenantUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTenant>>, TError,{slug: string;data: BodyType<TenantUpdate>}, TContext> => {
+
+const mutationKey = ['updateTenant'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTenant>>, {slug: string;data: BodyType<TenantUpdate>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  updateTenant(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTenantMutationResult = NonNullable<Awaited<ReturnType<typeof updateTenant>>>
+    export type UpdateTenantMutationBody = BodyType<TenantUpdate>
+    export type UpdateTenantMutationError = ErrorType<SimpleOk>
+
+    /**
+ * @summary Update a tenant (owner or admin)
+ */
+export const useUpdateTenant = <TError = ErrorType<SimpleOk>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenant>>, TError,{slug: string;data: BodyType<TenantUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTenant>>,
+        TError,
+        {slug: string;data: BodyType<TenantUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateTenantMutationOptions(options));
+    }
+
+export const getCheckSlugAvailabilityUrl = (slug: string,) => {
+
+
+
+
+  return `/api/tenants/${slug}/availability`
+}
+
+/**
+ * @summary Check if a slug is available
+ */
+export const checkSlugAvailability = async (slug: string, options?: RequestInit): Promise<SlugAvailability> => {
+
+  return customFetch<SlugAvailability>(getCheckSlugAvailabilityUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckSlugAvailabilityQueryKey = (slug: string,) => {
+    return [
+    `/api/tenants/${slug}/availability`
+    ] as const;
+    }
+
+
+export const getCheckSlugAvailabilityQueryOptions = <TData = Awaited<ReturnType<typeof checkSlugAvailability>>, TError = ErrorType<unknown>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkSlugAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCheckSlugAvailabilityQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof checkSlugAvailability>>> = ({ signal }) => checkSlugAvailability(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof checkSlugAvailability>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CheckSlugAvailabilityQueryResult = NonNullable<Awaited<ReturnType<typeof checkSlugAvailability>>>
+export type CheckSlugAvailabilityQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check if a slug is available
+ */
+
+export function useCheckSlugAvailability<TData = Awaited<ReturnType<typeof checkSlugAvailability>>, TError = ErrorType<unknown>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkSlugAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCheckSlugAvailabilityQueryOptions(slug,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
