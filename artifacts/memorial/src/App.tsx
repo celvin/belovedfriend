@@ -14,26 +14,34 @@ import Create from "@/pages/create";
 import Dashboard from "@/pages/dashboard";
 import Manage from "@/pages/manage";
 import MapPage from "@/pages/map";
+import Present from "@/pages/present";
 
 const queryClient = new QueryClient();
 
 function Router() {
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={Landing} />
-        <Route path="/sign-in" component={SignIn} />
-        <Route path="/create" component={Create} />
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/:slug/wall" component={Wall} />
-        <Route path="/:slug/compose" component={Compose} />
-        <Route path="/:slug/map" component={MapPage} />
-        <Route path="/:slug/manage" component={Manage} />
-        <Route path="/:slug/tribute/:id" component={Tribute} />
-        <Route path="/:slug" component={Home} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <Switch>
+      {/* Immersive fullscreen presentation — rendered WITHOUT the site chrome */}
+      <Route path="/:slug/present" component={Present} />
+      {/* Everything else lives inside the standard layout */}
+      <Route>
+        <Layout>
+          <Switch>
+            <Route path="/" component={Landing} />
+            <Route path="/sign-in" component={SignIn} />
+            <Route path="/create" component={Create} />
+            <Route path="/dashboard" component={Dashboard} />
+            <Route path="/:slug/wall" component={Wall} />
+            <Route path="/:slug/compose" component={Compose} />
+            <Route path="/:slug/map" component={MapPage} />
+            <Route path="/:slug/manage" component={Manage} />
+            <Route path="/:slug/tribute/:id" component={Tribute} />
+            <Route path="/:slug" component={Home} />
+            <Route component={NotFound} />
+          </Switch>
+        </Layout>
+      </Route>
+    </Switch>
   );
 }
 

@@ -22,6 +22,7 @@ import {
 import { X, Play, Plus, Network, Globe, Maximize2, Minimize2, Pencil, Trash2, ImagePlus } from "lucide-react";
 import { InlineVideoRecorder } from "@/components/inline-video-recorder";
 import { WorldMap, type PlottedNode } from "@/components/world-map";
+import { Starfield } from "@/components/starfield";
 import { useAuth } from "@/hooks/use-auth";
 import { uploadFile } from "@/lib/upload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -517,8 +518,16 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
       if (!selected) {
         const w = size.w;
         const h = size.h;
+        const cx = w / 2;
+        const cy = h / 2;
         const arr = nodesRef.current;
         for (const n of arr) {
+          // Gentle pull toward center so the field settles instead of wandering.
+          n.vx += (cx - n.x) * 0.00004 * dt;
+          n.vy += (cy - n.y) * 0.00004 * dt;
+          // Light damping keeps motion calm.
+          n.vx *= 0.995;
+          n.vy *= 0.995;
           n.x += n.vx * dt;
           n.y += n.vy * dt;
           if (n.x < 24 || n.x > w - 24) n.vx *= -1;
@@ -668,10 +677,22 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
       {/* Interactive network */}
       <div
         ref={containerRef}
-        className="relative w-full h-[420px] md:h-[640px] rounded-2xl border border-border/30 overflow-hidden bg-gradient-to-b from-background to-muted/40"
+        className={`relative w-full h-[420px] md:h-[640px] rounded-2xl border border-border/30 overflow-hidden ${
+          view === "constellation"
+            ? "bg-gradient-to-b from-[#141009] to-[#0b0906]"
+            : "bg-gradient-to-b from-background to-muted/40"
+        }`}
       >
+        {view === "constellation" && <Starfield count={80} />}
         {/* Fullscreen + Add buttons */}
         <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+          <Link
+            href={`/${slug}/present`}
+            title="Play the tribute in fullscreen"
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-primary/30 bg-card/80 backdrop-blur-sm text-primary hover:bg-primary/10 transition"
+          >
+            <Play size={12} /> Present
+          </Link>
           {isAuthenticated ? (
             <button
               type="button"
@@ -738,9 +759,11 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                     y1={e.source.y}
                     x2={e.target.x}
                     y2={e.target.y}
-                    stroke={isActive ? categoryColor(selectedLive!.category) : "#B47C34"}
-                    strokeOpacity={isActive ? 0.55 : opacity}
-                    strokeWidth={isActive ? 1 : 0.6}
+                    stroke={isActive ? categoryColor(selectedLive!.category) : "#E8B770"}
+                    strokeOpacity={isActive ? 0.8 : Math.min(0.7, opacity + 0.2)}
+                    strokeWidth={isActive ? 1.4 : 0.8}
+                    strokeDasharray="3 5"
+                    style={{ animation: "reach-flow 1.1s linear infinite" }}
                   />
                 );
               })}
@@ -764,13 +787,23 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                       setSelected({ id: n.id, x: n.x, y: n.y, radius: n.radius });
                     }}
                   >
-                    <circle r={n.radius + 8} fill={color} opacity={isSel ? 0.18 : isHover ? 0.14 : 0.06} />
-                    <circle r={n.radius + 4} fill={color} opacity={isSel ? 0.28 : 0.12} />
+                    {/* breathing halo */}
+                    <circle
+                      r={n.radius + 8}
+                      fill={color}
+                      style={{
+                        animation: `reach-pulse ${3 + (n.id % 4) * 0.6}s ease-in-out infinite`,
+                        transformBox: "fill-box",
+                        transformOrigin: "center",
+                      }}
+                    />
+                    <circle r={n.radius + 4} fill={color} opacity={isSel ? 0.4 : 0.2} />
                     <circle
                       r={n.radius}
                       fill={color}
                       stroke="#fffaf0"
                       strokeWidth={isSel ? 2 : 1}
+                      style={{ filter: `drop-shadow(0 0 ${isSel || isHover ? 8 : 4}px ${color})` }}
                     />
                     {(isHover ||
                       isSel ||
@@ -780,7 +813,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                         y={4}
                         fontSize={isSel ? 13 : 11}
                         fontFamily="Inter, sans-serif"
-                        fill="#3B2F1E"
+                        fill="#f5ead2"
                         style={{ pointerEvents: "none" }}
                       >
                         {n.label}
