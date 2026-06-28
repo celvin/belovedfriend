@@ -64,6 +64,14 @@ export default function Wall() {
               Links
             </Button>
           </div>
+
+          <div className="mt-6">
+            <Link href={`/${slug}/map`}>
+              <Button variant="ghost" size="sm" className="font-serif text-muted-foreground hover:text-foreground">
+                View the memory map →
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

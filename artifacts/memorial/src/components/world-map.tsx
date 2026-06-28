@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { geoNaturalEarth1, geoPath, type GeoPermissibleObjects } from "d3-geo";
+import { select } from "d3-selection";
+import { zoom, zoomIdentity, type ZoomTransform } from "d3-zoom";
+import { pointer } from "d3-selection";
 import { feature } from "topojson-client";
 import type { ReachNode } from "@workspace/api-client-react";
 
@@ -63,9 +66,11 @@ interface Props {
   selectedId?: number | null;
   hoveredId?: number | null;
   compact?: boolean;
+  addMode?: boolean;
   onHover?: (id: number | null) => void;
   onSelect?: (id: number) => void;
   onLayout?: (plotted: PlottedNode[]) => void;
+  onPickLocation?: (lat: number, lng: number) => void;
 }
 
 export function WorldMap({
@@ -75,15 +80,21 @@ export function WorldMap({
   selectedId,
   hoveredId,
   compact = false,
+  addMode = false,
   onHover,
   onSelect,
   onLayout,
+  onPickLocation,
 }: Props) {
   const [features, setFeatures] = useState<AnyFeature[] | null>(cachedFeatures);
   const [loadError, setLoadError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
   const onLayoutRef = useRef(onLayout);
   onLayoutRef.current = onLayout;
+  const svgRef = useRef<SVGSVGElement>(null);
+  // Keep a stable ref to the zoom behavior so buttons can call it
+  const zoomBehaviorRef = useRef<ReturnType<typeof zoom> | null>(null);
 
   useEffect(() => {
     if (features) return;
@@ -100,6 +111,25 @@ export function WorldMap({
       cancelled = true;
     };
   }, [features, retryNonce]);
+
+  // Wire d3-zoom onto the SVG element
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const svgEl = svgRef.current;
+
+    const zoomBehavior = zoom<SVGSVGElement, unknown>()
+      .scaleExtent([1, 12])
+      .on("zoom", (e) => {
+        setTransform(e.transform);
+      });
+
+    zoomBehaviorRef.current = zoomBehavior;
+    select(svgEl).call(zoomBehavior);
+
+    return () => {
+      select(svgEl).on(".zoom", null);
+    };
+  }, []);
 
   const projection = useMemo(() => {
     return geoNaturalEarth1()
@@ -128,169 +158,303 @@ export function WorldMap({
 
   const isReady = !!features;
 
+  // Scale factor for point radii/strokes — keeps marks legible when zoomed
+  const k = Math.max(1, transform.k);
+
+  // Handle background click for pick-a-location
+  function handleBgClick(e: React.MouseEvent<SVGRectElement>) {
+    if (!addMode || !svgRef.current) return;
+    const [px, py] = pointer(e.nativeEvent, svgRef.current);
+    const [sx, sy] = transform.invert([px, py]);
+    const ll = projection.invert?.([sx, sy]);
+    if (!ll || !isFinite(ll[0]) || !isFinite(ll[1])) return;
+    onPickLocation?.(ll[1], ll[0]);
+  }
+
+  // Zoom control helpers
+  function zoomIn() {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    select(svgRef.current).call(zoomBehaviorRef.current.scaleBy, 1.5);
+  }
+  function zoomOut() {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    select(svgRef.current).call(zoomBehaviorRef.current.scaleBy, 1 / 1.5);
+  }
+  function zoomReset() {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    select(svgRef.current).call(zoomBehaviorRef.current.transform, zoomIdentity);
+  }
+
   return (
-    <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${width} ${height}`}>
-      {/* Ocean / background */}
-      <rect x={0} y={0} width={width} height={height} fill="transparent" />
+    <div className="absolute inset-0" style={{ position: "relative" }}>
+      <svg
+        ref={svgRef}
+        className="absolute inset-0 w-full h-full"
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ cursor: addMode ? "crosshair" : "grab" }}
+      >
+        {/* Full-size background rect — catches pan gestures + location clicks */}
+        <rect
+          x={0}
+          y={0}
+          width={width}
+          height={height}
+          fill="transparent"
+          style={{ cursor: addMode ? "crosshair" : "inherit" }}
+          onClick={handleBgClick}
+        />
 
-      {/* Graticule-like subtle equator */}
-      <line
-        x1={0}
-        y1={height / 2 - 10}
-        x2={width}
-        y2={height / 2 - 10}
-        stroke="#B47C34"
-        strokeOpacity={0.08}
-        strokeDasharray="2 4"
-      />
+        {/* Graticule-like subtle equator (outside the zoom group — static) */}
+        <line
+          x1={0}
+          y1={height / 2 - 10}
+          x2={width}
+          y2={height / 2 - 10}
+          stroke="#B47C34"
+          strokeOpacity={0.08}
+          strokeDasharray="2 4"
+        />
 
-      {/* Countries */}
-      {isReady && features && (
-        <g>
-          {features.map((f, i) => {
-            const d = pathGen(f as GeoPermissibleObjects);
-            if (!d) return null;
-            return (
-              <path
-                key={i}
-                d={d}
-                fill="#E8DCC4"
-                fillOpacity={0.55}
-                stroke="#B47C34"
-                strokeOpacity={0.25}
-                strokeWidth={0.5}
-              />
-            );
-          })}
+        {/* All zoomable content */}
+        <g transform={transform.toString()}>
+          {/* Countries */}
+          {isReady && features && (
+            <g>
+              {features.map((f, i) => {
+                const d = pathGen(f as GeoPermissibleObjects);
+                if (!d) return null;
+                return (
+                  <path
+                    key={i}
+                    d={d}
+                    fill="#E8DCC4"
+                    fillOpacity={0.55}
+                    stroke="#B47C34"
+                    strokeOpacity={0.25}
+                    strokeWidth={0.5 / k}
+                  />
+                );
+              })}
+            </g>
+          )}
+
+          {/* Soft arcs connecting wonders in travel order */}
+          {isReady && (
+            <g>
+              {plotted
+                .filter((p) => p.node.category === "wonder")
+                .map((p, i, arr) => {
+                  const next = arr[(i + 1) % arr.length];
+                  if (!next || arr.length < 2) return null;
+                  const mx = (p.x + next.x) / 2;
+                  const my = (p.y + next.y) / 2 - 20;
+                  return (
+                    <path
+                      key={`arc-${p.node.id}`}
+                      d={`M ${p.x} ${p.y} Q ${mx} ${my} ${next.x} ${next.y}`}
+                      fill="none"
+                      stroke="#A03A6B"
+                      strokeOpacity={0.25}
+                      strokeWidth={0.8 / k}
+                      strokeDasharray={`${3 / k} ${3 / k}`}
+                    />
+                  );
+                })}
+            </g>
+          )}
+
+          {/* Points */}
+          {isReady && (
+            <g>
+              {plotted.map((p) => {
+                const color = categoryColor(p.node.category);
+                const isSel = selectedId === p.node.id;
+                const isHov = hoveredId === p.node.id;
+                const r = p.radius / k;
+                return (
+                  <g
+                    key={p.node.id}
+                    transform={`translate(${p.x},${p.y})`}
+                    className="cursor-pointer focus:outline-none"
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${p.node.label} — open tributes`}
+                    aria-pressed={isSel}
+                    onMouseEnter={() => onHover?.(p.node.id)}
+                    onMouseLeave={() => onHover?.(null)}
+                    onFocus={() => onHover?.(p.node.id)}
+                    onBlur={() => onHover?.(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect?.(p.node.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSelect?.(p.node.id);
+                      }
+                    }}
+                  >
+                    <circle r={r + 8 / k} fill={color} opacity={isSel ? 0.2 : isHov ? 0.14 : 0.06} />
+                    <circle r={r + 4 / k} fill={color} opacity={isSel ? 0.3 : 0.14} />
+                    <circle r={r} fill={color} stroke="#fffaf0" strokeWidth={(isSel ? 2 : 1) / k} />
+                    {(isHov || isSel || (!compact && p.node.category === "wonder")) && (
+                      <text
+                        x={r + 6 / k}
+                        y={4 / k}
+                        fontSize={(isSel ? 12 : 10) / k}
+                        fontFamily="Inter, sans-serif"
+                        fill="#3B2F1E"
+                        style={{ pointerEvents: "none" }}
+                      >
+                        {p.node.label}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          )}
         </g>
-      )}
 
-      {!isReady && !loadError && (
-        <text
-          x={width / 2}
-          y={height / 2}
-          textAnchor="middle"
-          fontFamily="serif"
-          fontStyle="italic"
-          fill="#8a7a5a"
-          fontSize={14}
-        >
-          Drawing the world…
-        </text>
-      )}
-
-      {loadError && (
-        <>
+        {/* Loading / error states — rendered outside zoom group so they stay centered */}
+        {!isReady && !loadError && (
           <text
             x={width / 2}
-            y={height / 2 - 10}
+            y={height / 2}
             textAnchor="middle"
             fontFamily="serif"
             fontStyle="italic"
             fill="#8a7a5a"
             fontSize={14}
           >
-            Map unavailable
+            Drawing the world…
           </text>
-          <g
-            transform={`translate(${width / 2}, ${height / 2 + 14})`}
-            className="cursor-pointer"
-            tabIndex={0}
-            role="button"
-            aria-label="Retry loading map"
-            onClick={() => setRetryNonce((n) => n + 1)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setRetryNonce((n) => n + 1);
-              }
-            }}
-          >
-            <rect x={-32} y={-10} width={64} height={20} rx={10} fill="#B47C34" fillOpacity={0.15} />
-            <text textAnchor="middle" y={4} fontSize={11} fill="#7A4A1F">
-              Retry
+        )}
+
+        {loadError && (
+          <>
+            <text
+              x={width / 2}
+              y={height / 2 - 10}
+              textAnchor="middle"
+              fontFamily="serif"
+              fontStyle="italic"
+              fill="#8a7a5a"
+              fontSize={14}
+            >
+              Map unavailable
             </text>
-          </g>
-        </>
-      )}
+            <g
+              transform={`translate(${width / 2}, ${height / 2 + 14})`}
+              className="cursor-pointer"
+              tabIndex={0}
+              role="button"
+              aria-label="Retry loading map"
+              onClick={() => setRetryNonce((n) => n + 1)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setRetryNonce((n) => n + 1);
+                }
+              }}
+            >
+              <rect x={-32} y={-10} width={64} height={20} rx={10} fill="#B47C34" fillOpacity={0.15} />
+              <text textAnchor="middle" y={4} fontSize={11} fill="#7A4A1F">
+                Retry
+              </text>
+            </g>
+          </>
+        )}
 
-      {/* Soft arcs connecting wonders in travel order */}
-      {isReady && (
-        <g>
-          {plotted
-            .filter((p) => p.node.category === "wonder")
-            .map((p, i, arr) => {
-              const next = arr[(i + 1) % arr.length];
-              if (!next || arr.length < 2) return null;
-              const mx = (p.x + next.x) / 2;
-              const my = (p.y + next.y) / 2 - 20;
-              return (
-                <path
-                  key={`arc-${p.node.id}`}
-                  d={`M ${p.x} ${p.y} Q ${mx} ${my} ${next.x} ${next.y}`}
-                  fill="none"
-                  stroke="#A03A6B"
-                  strokeOpacity={0.25}
-                  strokeWidth={0.8}
-                  strokeDasharray="3 3"
-                />
-              );
-            })}
-        </g>
-      )}
+        {/* addMode hint */}
+        {addMode && (
+          <text
+            x={width / 2}
+            y={18}
+            textAnchor="middle"
+            fontFamily="Inter, sans-serif"
+            fontSize={12}
+            fill="#7A4A1F"
+            fillOpacity={0.75}
+            style={{ pointerEvents: "none" }}
+          >
+            Click anywhere to drop a pin
+          </text>
+        )}
+      </svg>
 
-      {/* Points */}
-      {isReady && (
-        <g>
-          {plotted.map((p) => {
-            const color = categoryColor(p.node.category);
-            const isSel = selectedId === p.node.id;
-            const isHov = hoveredId === p.node.id;
-            return (
-              <g
-                key={p.node.id}
-                transform={`translate(${p.x},${p.y})`}
-                className="cursor-pointer focus:outline-none"
-                tabIndex={0}
-                role="button"
-                aria-label={`${p.node.label} — open tributes`}
-                aria-pressed={isSel}
-                onMouseEnter={() => onHover?.(p.node.id)}
-                onMouseLeave={() => onHover?.(null)}
-                onFocus={() => onHover?.(p.node.id)}
-                onBlur={() => onHover?.(null)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect?.(p.node.id);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onSelect?.(p.node.id);
-                  }
-                }}
-              >
-                <circle r={p.radius + 8} fill={color} opacity={isSel ? 0.2 : isHov ? 0.14 : 0.06} />
-                <circle r={p.radius + 4} fill={color} opacity={isSel ? 0.3 : 0.14} />
-                <circle r={p.radius} fill={color} stroke="#fffaf0" strokeWidth={isSel ? 2 : 1} />
-                {(isHov || isSel || (!compact && p.node.category === "wonder")) && (
-                  <text
-                    x={p.radius + 6}
-                    y={4}
-                    fontSize={isSel ? 12 : 10}
-                    fontFamily="Inter, sans-serif"
-                    fill="#3B2F1E"
-                    style={{ pointerEvents: "none" }}
-                  >
-                    {p.node.label}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </g>
-      )}
-    </svg>
+      {/* Zoom controls — absolutely positioned, bottom-right */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 8,
+          right: 8,
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          zIndex: 10,
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Zoom in"
+          onClick={zoomIn}
+          style={{
+            width: 24,
+            height: 24,
+            background: "rgba(248,243,233,0.9)",
+            border: "1px solid #B47C34",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 14,
+            lineHeight: "22px",
+            color: "#7A4A1F",
+            padding: 0,
+          }}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom out"
+          onClick={zoomOut}
+          style={{
+            width: 24,
+            height: 24,
+            background: "rgba(248,243,233,0.9)",
+            border: "1px solid #B47C34",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 14,
+            lineHeight: "22px",
+            color: "#7A4A1F",
+            padding: 0,
+          }}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          aria-label="Reset zoom"
+          onClick={zoomReset}
+          style={{
+            width: 24,
+            height: 24,
+            background: "rgba(248,243,233,0.9)",
+            border: "1px solid #B47C34",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 9,
+            lineHeight: "22px",
+            color: "#7A4A1F",
+            padding: 0,
+          }}
+        >
+          ⌂
+        </button>
+      </div>
+    </div>
   );
 }
