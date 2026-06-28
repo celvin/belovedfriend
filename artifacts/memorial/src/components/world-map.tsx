@@ -61,6 +61,7 @@ export interface PlottedNode {
 
 interface Props {
   nodes: ReachNode[];
+  edges?: { sourceNodeId: number; targetNodeId: number }[];
   width: number;
   height: number;
   selectedId?: number | null;
@@ -75,6 +76,7 @@ interface Props {
 
 export function WorldMap({
   nodes,
+  edges = [],
   width,
   height,
   selectedId,
@@ -169,6 +171,13 @@ export function WorldMap({
 
   useEffect(() => {
     onLayoutRef.current?.(plotted);
+  }, [plotted]);
+
+  // Plotted position lookup by node id — used to draw connection lines.
+  const posById = useMemo(() => {
+    const m = new Map<number, PlottedNode>();
+    for (const p of plotted) m.set(p.node.id, p);
+    return m;
   }, [plotted]);
 
   const isReady = !!features;
@@ -323,6 +332,29 @@ export function WorldMap({
                     />
                   );
                 })}
+            </g>
+          )}
+
+          {/* Reach connections — actual edges between two places */}
+          {isReady && edges.length > 0 && (
+            <g>
+              {edges.map((e, i) => {
+                const s = posById.get(e.sourceNodeId);
+                const t = posById.get(e.targetNodeId);
+                if (!s || !t) return null;
+                const mx = (s.x + t.x) / 2;
+                const my = (s.y + t.y) / 2 - 22;
+                return (
+                  <path
+                    key={`edge-${e.sourceNodeId}-${e.targetNodeId}-${i}`}
+                    d={`M ${s.x} ${s.y} Q ${mx} ${my} ${t.x} ${t.y}`}
+                    fill="none"
+                    stroke="#7A4A1F"
+                    strokeOpacity={0.45}
+                    strokeWidth={1.1 / k}
+                  />
+                );
+              })}
             </g>
           )}
 

@@ -693,6 +693,20 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
               <Plus size={12} /> Add to map
             </Link>
           )}
+          {isAuthenticated && data.nodes.length >= 2 && (
+            <button
+              type="button"
+              onClick={() => {
+                setAddPanelMode("edge");
+                setPickedLocation(null);
+                setShowAddNode(true);
+              }}
+              title="Connect two places"
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-primary/30 bg-card/80 backdrop-blur-sm text-primary hover:bg-primary/10 transition"
+            >
+              <Network size={12} /> Connect
+            </button>
+          )}
           <button
             type="button"
             onClick={toggleFullscreen}
@@ -780,6 +794,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
         ) : (
           <WorldMap
             nodes={data.nodes}
+            edges={data.edges}
             width={size.w}
             height={size.h}
             selectedId={selectedLive?.id ?? null}
