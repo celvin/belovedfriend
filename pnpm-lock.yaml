@@ -54,6 +54,9 @@ catalogs:
     react-dom:
       specifier: 19.1.0
       version: 19.1.0
+    serverless-http:
+      specifier: ^3.2.0
+      version: 3.2.0
     tailwind-merge:
       specifier: ^3.3.1
       version: 3.5.0
@@ -202,6 +205,9 @@ importers:
       resend:
         specifier: ^6.2.0
         version: 6.12.3
+      serverless-http:
+        specifier: 'catalog:'
+        version: 3.2.0
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -3202,6 +3208,10 @@ packages:
   serve-static@2.2.1:
     resolution: {integrity: sha512-xRXBn0pPqQTVQiC8wyQrKs2MOlX24zQ0POGaj0kultvoOCstBQM5yvOhAVSUwOMjQtTvsPWoNCHfPGwaaQJhTw==}
     engines: {node: '>= 18'}
+
+  serverless-http@3.2.0:
+    resolution: {integrity: sha512-QvSyZXljRLIGqwcJ4xsKJXwkZnAVkse1OajepxfjkBXV0BMvRS5R546Z4kCBI8IygDzkQY0foNPC/rnipaE9pQ==}
+    engines: {node: '>=12.0'}
 
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
@@ -6214,6 +6224,8 @@ snapshots:
       send: 1.2.1
     transitivePeerDependencies:
       - supports-color
+
+  serverless-http@3.2.0: {}
 
   setprototypeof@1.2.0: {}
 

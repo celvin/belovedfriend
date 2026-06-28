@@ -21,7 +21,8 @@
     "jsonwebtoken": "9.0.2",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0",
-    "resend": "^6.2.0"
+    "resend": "^6.2.0",
+    "serverless-http": "catalog:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
