@@ -136,6 +136,15 @@ export default function Home() {
               </Button>
             </a>
           </div>
+
+          <div className="pt-5 md:pt-8">
+            <Link
+              href={`/${slug}/present`}
+              className="inline-flex items-center gap-1.5 text-sm font-serif text-muted-foreground hover:text-primary transition-colors"
+            >
+              ▶ Play the tribute
+            </Link>
+          </div>
         </motion.div>
       </section>
 

@@ -256,3 +256,18 @@
     inset: -1px;
   }
 }
+
+/* Presentation + constellation animations */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.9; }
+}
+
+@keyframes reach-flow {
+  to { stroke-dashoffset: -16; }
+}
+
+@keyframes reach-pulse {
+  0%, 100% { opacity: 0.06; transform: scale(1); }
+  50% { opacity: 0.18; transform: scale(1.25); }
+}
