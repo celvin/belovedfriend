@@ -1,14 +1,16 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Maximize2, Minimize2, X } from "lucide-react";
 
 interface Props {
   playing: boolean;
   muted: boolean;
   visible: boolean;
+  isFullscreen: boolean;
   onToggle: () => void;
   onPrev: () => void;
   onNext: () => void;
   onMute: () => void;
+  onFullscreen: () => void;
   onExit: () => void;
 }
 
@@ -26,7 +28,7 @@ function Ctrl({ onClick, label, children }: { onClick: () => void; label: string
   );
 }
 
-export function PresentationControls({ playing, muted, visible, onToggle, onPrev, onNext, onMute, onExit }: Props) {
+export function PresentationControls({ playing, muted, visible, isFullscreen, onToggle, onPrev, onNext, onMute, onFullscreen, onExit }: Props) {
   return (
     <AnimatePresence>
       {visible && (
@@ -48,6 +50,9 @@ export function PresentationControls({ playing, muted, visible, onToggle, onPrev
           <div className="mx-1 h-5 w-px bg-white/15" />
           <Ctrl onClick={onMute} label={muted ? "Unmute" : "Mute"}>
             {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </Ctrl>
+          <Ctrl onClick={onFullscreen} label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}>
+            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           </Ctrl>
           <Ctrl onClick={onExit} label="Exit presentation">
             <X size={18} />

@@ -518,16 +518,8 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
       if (!selected) {
         const w = size.w;
         const h = size.h;
-        const cx = w / 2;
-        const cy = h / 2;
         const arr = nodesRef.current;
         for (const n of arr) {
-          // Gentle pull toward center so the field settles instead of wandering.
-          n.vx += (cx - n.x) * 0.00004 * dt;
-          n.vy += (cy - n.y) * 0.00004 * dt;
-          // Light damping keeps motion calm.
-          n.vx *= 0.995;
-          n.vy *= 0.995;
           n.x += n.vx * dt;
           n.y += n.vy * dt;
           if (n.x < 24 || n.x > w - 24) n.vx *= -1;

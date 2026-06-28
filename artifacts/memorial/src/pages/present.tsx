@@ -46,11 +46,20 @@ export default function Present() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Best-effort OS fullscreen (browsers may require a direct gesture; the page
-  // is a full-viewport overlay regardless).
+  // Best-effort OS fullscreen on mount (browsers may require a direct gesture;
+  // the page is a full-viewport overlay regardless). A control button below lets
+  // the viewer toggle it explicitly (a click is always a valid gesture).
+  const [isFullscreen, setIsFullscreen] = useState(false);
   useEffect(() => {
     containerRef.current?.requestFullscreen?.().catch(() => {});
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else containerRef.current?.requestFullscreen?.().catch(() => {});
+  };
 
   const pc = (tenant?.pageConfig ?? {}) as Record<string, unknown>;
   const accent = ((pc.theme as { accent?: string } | undefined)?.accent) || PALETTE.defaultAccent;
@@ -223,10 +232,12 @@ export default function Present() {
             playing={playing}
             muted={muted}
             visible={controlsVisible}
+            isFullscreen={isFullscreen}
             onToggle={() => setPlaying((p) => !p)}
             onPrev={goPrev}
             onNext={goNext}
             onMute={() => setMuted((m) => !m)}
+            onFullscreen={toggleFullscreen}
             onExit={exit}
           />
         </>
