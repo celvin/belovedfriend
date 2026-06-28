@@ -117,8 +117,7 @@ export async function requireOwner(req: Request, res: Response, next: NextFuncti
     return;
   }
   const owner = tenant.ownerUserId === sess.uid;
-  const admin = await isSuperAdmin(sess.uid);
-  if (!owner && !admin) {
+  if (!owner && !(await isSuperAdmin(sess.uid))) {
     res.status(403).json({ error: "You do not manage this page" });
     return;
   }
