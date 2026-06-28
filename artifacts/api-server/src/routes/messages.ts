@@ -38,6 +38,7 @@ function serialize(row: typeof messagesTable.$inferSelect) {
     card: row.card,
     url: row.url,
     nodeId: row.nodeId,
+    userId: row.userId,
     createdAt: row.createdAt.toISOString(),
   };
 }
