@@ -556,65 +556,6 @@ export default function Manage() {
         </div>
       )}
 
-      {/* Prominent photo section */}
-      <section className="bg-card border border-border/40 rounded-xl p-5">
-        <h2 className="font-serif text-lg mb-4">
-          Photo of {tenant?.friendName ?? "your friend"}
-        </h2>
-        {/* Hidden file input — button below triggers it */}
-        <input
-          ref={heroFileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleHeroPhotoChange}
-          disabled={heroUploading}
-        />
-        <div className="flex items-center gap-5">
-          {/* Avatar preview or placeholder */}
-          {pageSettings?.heroPhotoPath ? (
-            <img
-              src={`/api${pageSettings.heroPhotoPath}`}
-              alt="Friend photo"
-              className="h-28 w-28 object-cover rounded-full border border-border/40 shrink-0"
-            />
-          ) : (
-            <div className="h-28 w-28 rounded-full bg-muted border border-border/40 flex items-center justify-center shrink-0">
-              <Camera size={32} className="text-muted-foreground/50" />
-            </div>
-          )}
-          <div className="space-y-2">
-            {heroUploading ? (
-              <p className="text-sm text-muted-foreground animate-pulse">Uploading…</p>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full font-serif"
-                onClick={() => heroFileInputRef.current?.click()}
-                disabled={heroUploading}
-              >
-                {pageSettings?.heroPhotoPath ? "Change photo" : "Upload photo"}
-              </Button>
-            )}
-            {pageSettings?.heroPhotoPath && !heroUploading && (
-              <div>
-                <button
-                  type="button"
-                  className="text-xs text-destructive hover:underline"
-                  onClick={handleRemoveHeroPhoto}
-                  disabled={updateTenant.isPending}
-                >
-                  Remove photo
-                </button>
-              </div>
-            )}
-            {heroSaved && <p className="text-xs text-green-600">Photo saved.</p>}
-            {heroError && <p className="text-xs text-destructive">{heroError}</p>}
-          </div>
-        </div>
-      </section>
-
       {/* Edit tenant meta */}
       <section className="bg-card border border-border/40 rounded-xl overflow-hidden">
         <button
@@ -627,6 +568,61 @@ export default function Manage() {
         </button>
         {showEditMeta && (
           <form onSubmit={handleSaveMeta} className="px-5 pb-5 space-y-4 border-t border-border/30 pt-4">
+            {/* Friend photo */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-2">Photo</label>
+              {/* Hidden file input — buttons below trigger it */}
+              <input
+                ref={heroFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleHeroPhotoChange}
+                disabled={heroUploading}
+              />
+              <div className="flex items-center gap-5">
+                {pageSettings?.heroPhotoPath ? (
+                  <img
+                    src={`/api${pageSettings.heroPhotoPath}`}
+                    alt="Friend photo"
+                    className="h-28 w-28 object-cover rounded-full border border-border/40 shrink-0"
+                  />
+                ) : (
+                  <div className="h-28 w-28 rounded-full bg-muted border border-border/40 flex items-center justify-center shrink-0">
+                    <Camera size={32} className="text-muted-foreground/50" />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {heroUploading ? (
+                    <p className="text-sm text-muted-foreground animate-pulse">Uploading…</p>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-full font-serif"
+                      onClick={() => heroFileInputRef.current?.click()}
+                      disabled={heroUploading}
+                    >
+                      {pageSettings?.heroPhotoPath ? "Change photo" : "Upload photo"}
+                    </Button>
+                  )}
+                  {pageSettings?.heroPhotoPath && !heroUploading && (
+                    <div>
+                      <button
+                        type="button"
+                        className="text-xs text-destructive hover:underline"
+                        onClick={handleRemoveHeroPhoto}
+                        disabled={updateTenant.isPending}
+                      >
+                        Remove photo
+                      </button>
+                    </div>
+                  )}
+                  {heroSaved && <p className="text-xs text-green-600">Photo saved.</p>}
+                  {heroError && <p className="text-xs text-destructive">{heroError}</p>}
+                </div>
+              </div>
+            </div>
             <div>
               <label className="block text-xs text-muted-foreground mb-1">Name</label>
               <input
@@ -750,36 +746,6 @@ export default function Manage() {
                   />
                   <span className="text-sm">Show birth / death years</span>
                 </label>
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Hero photo</label>
-                {pageSettings.heroPhotoPath && (
-                  <div className="mb-2 flex items-center gap-3">
-                    <img
-                      src={`/api${pageSettings.heroPhotoPath}`}
-                      alt="Hero preview"
-                      className="h-16 w-16 object-cover rounded-md border border-border/40"
-                    />
-                    <button
-                      type="button"
-                      className="text-xs text-destructive hover:underline"
-                      onClick={() => setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: null } : prev)}
-                    >
-                      Remove photo
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={heroFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="text-sm text-muted-foreground file:mr-2 file:rounded-full file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-medium"
-                    onChange={handleHeroPhotoChange}
-                    disabled={heroUploading}
-                  />
-                  {heroUploading && <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>}
-                </div>
               </div>
             </div>
 
