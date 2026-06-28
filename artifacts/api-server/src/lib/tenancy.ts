@@ -55,6 +55,15 @@ export const PageConfigSchema = z.object({
     primaryLabel: z.string().default("Leave a tribute"),
     wallLabel: z.string().default("Read tributes"),
   }),
+  // Presentation ("Tribute Theater") curation: explicit memory order, hidden
+  // memory ids, and a kiosk auto-launch flag.
+  presentation: z
+    .object({
+      order: z.array(z.number()).default([]),
+      hidden: z.array(z.number()).default([]),
+      autoplay: z.boolean().default(false),
+    })
+    .default({ order: [], hidden: [], autoplay: false }),
 });
 
 export type PageConfig = z.infer<typeof PageConfigSchema>;
