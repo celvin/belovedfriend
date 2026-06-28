@@ -48,6 +48,7 @@ export default function Home() {
 
   const config = tenant.pageConfig as Record<string, unknown>;
   const heroConfig = (config.hero ?? {}) as Record<string, unknown>;
+  const heroPhotoPath = heroConfig.heroPhotoPath as string | undefined;
   const ctaConfig = (config.cta ?? {}) as Record<string, unknown>;
   const sectionsConfig = (config.sections ?? {}) as Record<string, unknown>;
   const storyConfig = (config.story ?? {}) as Record<string, unknown>;
@@ -79,6 +80,16 @@ export default function Home() {
           transition={{ duration: 1, ease: "easeOut" }}
           className="max-w-4xl mx-auto z-10 space-y-6 md:space-y-8"
         >
+          {heroPhotoPath && (
+            <div className="flex justify-center">
+              <img
+                src={`/api${heroPhotoPath}`}
+                alt={friendName}
+                className="w-40 h-40 md:w-56 md:h-56 rounded-full object-cover shadow-xl ring-4 ring-primary/10"
+              />
+            </div>
+          )}
+
           <div className="space-y-3 md:space-y-4">
             <h1 className="text-5xl sm:text-6xl md:text-8xl font-serif tracking-tight text-foreground">
               {friendName}

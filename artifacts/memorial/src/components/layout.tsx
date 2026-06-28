@@ -43,16 +43,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const brandHref = isPlatform ? "/" : `/${slug}`;
 
+  const heroConfig = (tenant?.pageConfig as Record<string, unknown> | undefined)?.hero as Record<string, unknown> | undefined;
+  const heroPhotoPath = heroConfig?.heroPhotoPath as string | undefined;
+
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background text-foreground font-sans">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link
             href={brandHref}
-            className="font-serif italic text-xl tracking-wide text-foreground/90 hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-foreground/90 hover:text-foreground transition-colors"
             onClick={() => setMenuOpen(false)}
           >
-            {brandName}
+            {heroPhotoPath && (
+              <img
+                src={`/api${heroPhotoPath}`}
+                alt=""
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+            )}
+            <span className="font-serif italic text-xl tracking-wide">{brandName}</span>
           </Link>
 
           {/* Desktop nav */}
@@ -81,6 +91,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ) : (
               // Tenant nav
               <>
+                <Link href={`/${slug}`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  Home
+                </Link>
                 <Link href={`/${slug}/wall`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   Tributes
                 </Link>
@@ -176,6 +189,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
               ) : (
                 // Tenant mobile nav
                 <>
+                  <button
+                    type="button"
+                    onClick={() => go(`/${slug}`)}
+                    className="py-3 text-left text-foreground/80 hover:text-foreground"
+                  >
+                    Home
+                  </button>
                   <button
                     type="button"
                     onClick={() => go(`/${slug}/wall`)}
