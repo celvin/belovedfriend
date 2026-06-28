@@ -509,6 +509,31 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SimpleOk" }
+    delete:
+      operationId: deleteTenant
+      tags: [tenants]
+      summary: Permanently delete a tenant and all its content (owner or admin)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
 
   /tenants/{slug}/availability:
     get:
@@ -678,6 +703,7 @@ components:
         authorName: { type: string }
         relationship: { type: ["string", "null"] }
         location: { type: ["string", "null"] }
+        photoPath: { type: ["string", "null"] }
         card:
           type: object
           additionalProperties: true

@@ -189,6 +189,8 @@ export interface MessageUpdate {
   relationship?: string | null;
   /** @nullable */
   location?: string | null;
+  /** @nullable */
+  photoPath?: string | null;
   card?: MessageUpdateCard;
   url?: string;
 }

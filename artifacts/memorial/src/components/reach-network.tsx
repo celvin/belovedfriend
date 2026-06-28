@@ -8,19 +8,22 @@ import {
   useCreateReachNode,
   useCreateReachEdge,
   useListMessages,
+  useCreateMessage,
   useUpdateMessage,
   useDeleteMessage,
   getGetReachQueryKey,
   getGetTenantQueryKey,
   getListMessagesQueryKey,
   ListMessagesType,
+  MessageInputType,
   type ReachNode,
   type Message,
 } from "@workspace/api-client-react";
-import { X, Play, Plus, Network, Globe, Maximize2, Minimize2, Pencil, Trash2 } from "lucide-react";
+import { X, Play, Plus, Network, Globe, Maximize2, Minimize2, Pencil, Trash2, ImagePlus } from "lucide-react";
 import { InlineVideoRecorder } from "@/components/inline-video-recorder";
 import { WorldMap, type PlottedNode } from "@/components/world-map";
 import { useAuth } from "@/hooks/use-auth";
+import { uploadFile } from "@/lib/upload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -933,10 +936,76 @@ function NodeMarker({
   const [editBody, setEditBody] = useState("");
   const [editUrl, setEditUrl] = useState("");
   const [editUrlError, setEditUrlError] = useState<string | null>(null);
+  const [editPhotoPath, setEditPhotoPath] = useState<string | null>(null);
+  const [editPhotoBusy, setEditPhotoBusy] = useState(false);
+  const editPhotoInputRef = useRef<HTMLInputElement>(null);
 
   // Hooks called once at top level — not inside map()
   const updateMutation = useUpdateMessage();
   const deleteMutation = useDeleteMessage();
+  const createMutation = useCreateMessage();
+
+  // Add-a-photo-&-message state (primary affordance for any signed-in member)
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoMsg, setPhotoMsg] = useState("");
+  const [photoName, setPhotoName] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  function resetPhotoForm() {
+    setPhotoFile(null);
+    setPhotoPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    setPhotoMsg("");
+    setPhotoName("");
+    setPhotoError(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
+
+  function onPhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setPhotoPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f); });
+    setPhotoFile(f);
+    setPhotoError(null);
+  }
+
+  async function handlePhotoSubmit() {
+    if (!photoFile || photoBusy) return;
+    setPhotoBusy(true);
+    setPhotoError(null);
+    try {
+      const photoPath = await uploadFile(photoFile, photoFile.type);
+      const body = photoMsg.trim();
+      const name = photoName.trim();
+      await createMutation.mutateAsync({
+        slug,
+        data: {
+          type: MessageInputType.card,
+          ...(name ? { authorName: name } : {}),
+          body: body || undefined,
+          photoPath,
+          card: {
+            template: "minimal",
+            background: "#FAFAFA",
+            accent: "#2A2A2A",
+            ...(body ? { body } : {}),
+            photoPath,
+          },
+          nodeId: node.id,
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
+      resetPhotoForm();
+      setPhotoOpen(false);
+    } catch {
+      setPhotoError("Couldn't add your photo. Please try again.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   // When a node with >2 tributes is selected, auto-open the modal
   useEffect(() => {
@@ -960,6 +1029,22 @@ function NodeMarker({
     setEditLocation(msg.location ?? "");
     setEditBody(msg.type === "card" ? (msg.card?.body as string | undefined ?? "") : (msg.body ?? ""));
     setEditUrl(msg.url ?? "");
+    setEditPhotoPath(msg.photoPath ?? null);
+  }
+
+  async function handleEditPhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setEditPhotoBusy(true);
+    try {
+      const p = await uploadFile(f, f.type);
+      setEditPhotoPath(p);
+    } catch {
+      /* keep current photo on failure */
+    } finally {
+      setEditPhotoBusy(false);
+      if (editPhotoInputRef.current) editPhotoInputRef.current.value = "";
+    }
   }
 
   function handleDelete(msg: Message, e: React.MouseEvent) {
@@ -992,9 +1077,11 @@ function NodeMarker({
       authorName?: string;
       relationship: string | null;
       location: string | null;
+      photoPath: string | null;
     } = {
       relationship: editRelationship.trim() || null,
       location: editLocation.trim() || null,
+      photoPath: editPhotoPath,
     };
     if (trimmedName.length > 0) baseFields.authorName = trimmedName;
 
@@ -1002,7 +1089,7 @@ function NodeMarker({
       editingMsg.type === "card"
         ? {
             ...baseFields,
-            card: { ...editingMsg.card, body: editBody },
+            card: { ...editingMsg.card, body: editBody, photoPath: editPhotoPath },
           }
         : editingMsg.type === "link"
         ? {
@@ -1048,12 +1135,14 @@ function NodeMarker({
     if (isAuthenticated) {
       return (
         <div className="pt-1 space-y-2 border-t border-border/30">
-          <Link
-            href={`/${slug}/compose?node=${node.id}`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+          {/* Primary: add a photo + a short message */}
+          <button
+            type="button"
+            onClick={() => { setModalOpen(false); setRecording(false); setPhotoOpen(true); }}
+            className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium text-primary-foreground bg-primary rounded-md py-2 hover:bg-primary/90 transition"
           >
-            <Play size={12} /> Share a memory from here →
-          </Link>
+            <ImagePlus size={13} /> Add a photo &amp; message
+          </button>
           <button
             type="button"
             onClick={() => { setModalOpen(false); setRecording(true); }}
@@ -1061,6 +1150,12 @@ function NodeMarker({
           >
             <Plus size={12} /> Record a video tribute here
           </button>
+          <Link
+            href={`/${slug}/compose?node=${node.id}`}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary hover:underline"
+          >
+            <Play size={12} /> Open the full designer →
+          </Link>
         </div>
       );
     }
@@ -1147,7 +1242,11 @@ function NodeMarker({
                         href={`/${slug}/tribute/${t.id}`}
                         className="flex items-center gap-2 text-xs text-foreground hover:text-primary transition truncate flex-1 min-w-0"
                       >
-                        <Play size={10} className="shrink-0 text-primary/60" />
+                        {t.photoPath ? (
+                          <img src={`/api${t.photoPath}`} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
+                        ) : (
+                          <Play size={10} className="shrink-0 text-primary/60" />
+                        )}
                         <span className="truncate">{t.authorName}</span>
                       </Link>
                       {isAuthor(t) && (
@@ -1203,11 +1302,22 @@ function NodeMarker({
                   className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition min-w-0 flex-1"
                   onClick={() => setModalOpen(false)}
                 >
-                  <Play size={12} className="shrink-0 text-primary/60" />
-                  <span className="truncate">{t.authorName}</span>
-                  {t.relationship && (
-                    <span className="text-xs text-muted-foreground shrink-0">· {t.relationship}</span>
+                  {t.photoPath ? (
+                    <img src={`/api${t.photoPath}`} alt="" className="w-9 h-9 rounded object-cover shrink-0" />
+                  ) : (
+                    <Play size={12} className="shrink-0 text-primary/60" />
                   )}
+                  <span className="min-w-0">
+                    <span className="truncate block">
+                      {t.authorName}
+                      {t.relationship ? (
+                        <span className="text-xs text-muted-foreground"> · {t.relationship}</span>
+                      ) : null}
+                    </span>
+                    {t.body && (
+                      <span className="text-xs text-muted-foreground truncate block">{t.body}</span>
+                    )}
+                  </span>
                 </Link>
                 {isAuthor(t) && (
                   <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
@@ -1272,6 +1382,53 @@ function NodeMarker({
                 placeholder="City, Country"
               />
             </div>
+            {(editingMsg?.type === "card" || editPhotoPath) && (
+              <div className="flex flex-col gap-2">
+                <Label>Photo</Label>
+                <input
+                  ref={editPhotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleEditPhotoPick}
+                />
+                {editPhotoPath ? (
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={`/api${editPhotoPath}`}
+                      alt=""
+                      className="w-20 h-20 rounded object-cover border border-border/40"
+                    />
+                    <div className="flex flex-col gap-1 items-start">
+                      <button
+                        type="button"
+                        className="text-xs text-primary hover:underline disabled:opacity-50"
+                        onClick={() => editPhotoInputRef.current?.click()}
+                        disabled={editPhotoBusy}
+                      >
+                        {editPhotoBusy ? "Uploading…" : "Replace photo"}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs text-destructive hover:underline"
+                        onClick={() => setEditPhotoPath(null)}
+                      >
+                        Remove photo
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline self-start disabled:opacity-50"
+                    onClick={() => editPhotoInputRef.current?.click()}
+                    disabled={editPhotoBusy}
+                  >
+                    {editPhotoBusy ? "Uploading…" : "Add a photo"}
+                  </button>
+                )}
+              </div>
+            )}
             {editingMsg?.type === "card" && (
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="nm-edit-body">Message</Label>
@@ -1324,6 +1481,73 @@ function NodeMarker({
             </Button>
             <Button onClick={handleSave} disabled={updateMutation.isPending}>
               {updateMutation.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add a photo & message dialog (primary marker action) */}
+      <Dialog open={photoOpen} onOpenChange={(open) => { if (!open) { setPhotoOpen(false); resetPhotoForm(); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-serif">Add a photo from {node.label}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPhotoPicked}
+            />
+            {photoPreview ? (
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="relative group rounded-lg overflow-hidden border border-border/40"
+              >
+                <img src={photoPreview} alt="Selected" className="w-full max-h-64 object-contain bg-muted" />
+                <span className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-xs py-1 text-center opacity-0 group-hover:opacity-100 transition">
+                  Change photo
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border/50 py-10 text-muted-foreground hover:border-primary/50 hover:text-primary transition"
+              >
+                <ImagePlus size={28} />
+                <span className="text-sm">Choose a photo</span>
+              </button>
+            )}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="nm-photo-msg">A little message (optional)</Label>
+              <Textarea
+                id="nm-photo-msg"
+                value={photoMsg}
+                onChange={(e) => setPhotoMsg(e.target.value)}
+                rows={3}
+                placeholder="Share a memory from here…"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="nm-photo-name">Your name (optional)</Label>
+              <Input
+                id="nm-photo-name"
+                value={photoName}
+                onChange={(e) => setPhotoName(e.target.value)}
+                placeholder="A friend"
+              />
+            </div>
+            {photoError && <p className="text-xs text-destructive">{photoError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPhotoOpen(false); resetPhotoForm(); }}>
+              Cancel
+            </Button>
+            <Button onClick={handlePhotoSubmit} disabled={!photoFile || photoBusy}>
+              {photoBusy ? "Adding…" : "Add to the map"}
             </Button>
           </DialogFooter>
         </DialogContent>

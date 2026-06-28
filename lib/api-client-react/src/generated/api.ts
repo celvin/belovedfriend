@@ -1916,6 +1916,76 @@ export const useUpdateTenant = <TError = ErrorType<SimpleOk>,
       return useMutation(getUpdateTenantMutationOptions(options));
     }
 
+export const getDeleteTenantUrl = (slug: string,) => {
+
+
+
+
+  return `/api/tenants/${slug}`
+}
+
+/**
+ * @summary Permanently delete a tenant and all its content (owner or admin)
+ */
+export const deleteTenant = async (slug: string, options?: RequestInit): Promise<SimpleOk> => {
+
+  return customFetch<SimpleOk>(getDeleteTenantUrl(slug),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteTenantMutationOptions = <TError = ErrorType<SimpleOk>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTenant>>, TError,{slug: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTenant>>, TError,{slug: string}, TContext> => {
+
+const mutationKey = ['deleteTenant'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTenant>>, {slug: string}> = (props) => {
+          const {slug} = props ?? {};
+
+          return  deleteTenant(slug,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTenantMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTenant>>>
+
+    export type DeleteTenantMutationError = ErrorType<SimpleOk>
+
+    /**
+ * @summary Permanently delete a tenant and all its content (owner or admin)
+ */
+export const useDeleteTenant = <TError = ErrorType<SimpleOk>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTenant>>, TError,{slug: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTenant>>,
+        TError,
+        {slug: string},
+        TContext
+      > => {
+      return useMutation(getDeleteTenantMutationOptions(options));
+    }
+
 export const getCheckSlugAvailabilityUrl = (slug: string,) => {
 
 
