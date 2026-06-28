@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const FROM_NAME = "In Memory of Luis Ventura";
+const DEFAULT_FROM_NAME = "belovedfriend.org";
 
 let resend: Resend | null = null;
 function getResend(): { resend: Resend; fromEmail: string } {
@@ -17,10 +17,11 @@ export async function sendEmail(opts: {
   subject: string;
   text: string;
   html: string;
+  fromName?: string;
 }): Promise<void> {
   const { resend, fromEmail } = getResend();
   const { error } = await resend.emails.send({
-    from: `${FROM_NAME} <${fromEmail}>`,
+    from: `${opts.fromName ?? DEFAULT_FROM_NAME} <${fromEmail}>`,
     to: opts.to,
     subject: opts.subject,
     text: opts.text,
