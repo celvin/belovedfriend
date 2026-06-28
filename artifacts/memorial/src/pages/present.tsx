@@ -91,17 +91,28 @@ export default function Present() {
   const scene = scenes[index];
   const edgeCount = reach?.edges?.length ?? 0;
 
+  const reduceMotion = useMemo(
+    () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
+
+  // How long the current scene stays on screen (null = wait for a video to end).
+  // Journey is paced to the number of hops but capped so it never drags.
+  const sceneDuration = useMemo<number | null>(() => {
+    if (!scene) return null;
+    if (scene.kind === "memory" && scene.message.type === "video" && scene.message.videoPath) return null;
+    if (scene.kind === "title") return SCENE_MS.title;
+    if (scene.kind === "journey") return Math.min(16000, Math.max(SCENE_MS.journeyBase, edgeCount * SCENE_MS.journeyPerEdge));
+    return SCENE_MS.photo;
+  }, [scene, edgeCount]);
+
   // Timer-driven advance; video memory scenes advance on their `ended` event.
   useEffect(() => {
-    if (!playing || !scene) return;
-    if (scene.kind === "memory" && scene.message.type === "video" && scene.message.videoPath) return;
-    let ms: number = SCENE_MS.photo;
-    if (scene.kind === "title") ms = SCENE_MS.title;
-    else if (scene.kind === "journey") ms = Math.max(SCENE_MS.journeyBase, edgeCount * SCENE_MS.journeyPerEdge);
-    const timer = setTimeout(goNext, ms);
+    if (!playing || sceneDuration == null) return;
+    const timer = setTimeout(goNext, sceneDuration);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, playing, scene, edgeCount, scenes.length]);
+  }, [index, playing, sceneDuration, scenes.length]);
 
   // New-memory flourish (skip the initial load).
   const seenRef = useRef<Set<number> | null>(null);
@@ -192,6 +203,7 @@ export default function Present() {
                   tagline={tenant.tagline ?? null}
                   heroPhotoPath={heroPhotoPath}
                   accent={accent}
+                  reduceMotion={reduceMotion}
                 />
               )}
               {scene?.kind === "journey" && (
@@ -201,13 +213,27 @@ export default function Present() {
                   width={size.w}
                   height={size.h}
                   accent={accent}
+                  durationMs={sceneDuration ?? 13000}
+                  reduceMotion={reduceMotion}
                 />
               )}
               {scene?.kind === "memory" && (
-                <MemoryScene message={scene.message} muted={muted} onEnded={goNext} />
+                <MemoryScene message={scene.message} muted={muted} reduceMotion={reduceMotion} onEnded={goNext} />
               )}
             </motion.div>
           </AnimatePresence>
+
+          {/* Thin scene-progress bar (timer scenes only; videos run on their own) */}
+          {playing && !reduceMotion && sceneDuration != null && (
+            <motion.div
+              key={`progress-${index}`}
+              className="absolute left-0 top-0 z-[112] h-[3px]"
+              style={{ background: "rgba(255,255,255,0.5)" }}
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              transition={{ duration: sceneDuration / 1000, ease: "linear" }}
+            />
+          )}
 
           {empty && (
             <div className="pointer-events-none absolute bottom-24 left-0 right-0 text-center font-serif italic text-white/50">

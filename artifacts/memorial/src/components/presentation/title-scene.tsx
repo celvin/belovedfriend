@@ -7,16 +7,17 @@ interface Props {
   tagline: string | null;
   heroPhotoPath?: string;
   accent: string;
+  reduceMotion?: boolean;
 }
 
-export function TitleScene({ friendName, yearRange, tagline, heroPhotoPath, accent }: Props) {
+export function TitleScene({ friendName, yearRange, tagline, heroPhotoPath, accent, reduceMotion = false }: Props) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
       <Starfield count={120} />
       <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1.06 }}
-        transition={{ duration: 6.5, ease: "easeOut" }}
+        initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.96 }}
+        animate={{ opacity: 1, scale: reduceMotion ? 1 : 1.06 }}
+        transition={{ duration: reduceMotion ? 1.2 : 6.5, ease: "easeOut" }}
         className="relative z-10 flex flex-col items-center gap-6"
       >
         {heroPhotoPath && (
