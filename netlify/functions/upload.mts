@@ -1,4 +1,4 @@
-import type { Context, Config } from "@netlify/functions";
+import type { Context } from "@netlify/functions";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { mediaStore } from "./_shared/blobs";
@@ -36,4 +36,4 @@ export default async (req: Request, _ctx: Context) => {
   });
 };
 
-export const config: Config = { path: "/api/uploads" };
+// Routed via netlify.toml redirect: /api/uploads -> /.netlify/functions/upload
