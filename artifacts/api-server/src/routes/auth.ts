@@ -18,6 +18,15 @@ import {
   hashToken,
 } from "../lib/magicLinkToken";
 import { sendEmail } from "../lib/email";
+import { resolveTenant } from "../lib/tenancy";
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 const router: IRouter = Router();
 
@@ -115,18 +124,34 @@ router.post("/auth/request-link", async (req: Request, res: Response) => {
     const base = resolveBaseUrl(req);
     const link = `${base}/sign-in?token=${encodeURIComponent(token)}`;
 
+    // Tenant-aware branding: reference the friend's page when a slug is present,
+    // otherwise generic platform branding (e.g. when claiming a brand-new page).
+    let friendName: string | null = null;
+    if (parsed.data.slug) {
+      const t = await resolveTenant(parsed.data.slug);
+      if (t) friendName = t.friendName;
+    }
+    const safeName = friendName ? escapeHtml(friendName) : null;
+    const subject = friendName
+      ? `Your sign-in link — ${friendName}`
+      : "Your sign-in link — belovedfriend.org";
+    const introText = friendName
+      ? `Thank you for taking a moment to remember ${friendName}.`
+      : "Welcome to belovedfriend.org — a place to create and share online tributes for the people we love.";
+    const heading = safeName ? `In memory of ${safeName}` : "belovedfriend.org";
+
     try {
       await sendEmail({
         to: email,
-        subject: "Your sign-in link — In Memory of Luis Ventura",
+        subject,
         text:
-          `Thank you for sharing a tribute to Luis Ventura.\n\n` +
+          `${introText}\n\n` +
           `Click the link below to sign in. It expires in 30 minutes.\n\n${link}\n\n` +
           `If you did not request this email, you can safely ignore it.`,
         html: `<!doctype html><html><body style="font-family: Georgia, 'Times New Roman', serif; background:#f8f3ea; padding:32px; color:#2b2218;">
 <div style="max-width:520px; margin:0 auto; background:#fffaf0; border:1px solid #e8dcc4; padding:36px 32px; border-radius:8px;">
-<h2 style="font-weight:400; letter-spacing:0.02em; color:#3b2f1e; margin-top:0;">In memory of Luis Ventura</h2>
-<p>Thank you for taking a moment to share a tribute.</p>
+<h2 style="font-weight:400; letter-spacing:0.02em; color:#3b2f1e; margin-top:0;">${heading}</h2>
+<p>${escapeHtml(introText)}</p>
 <p>Click the button below to sign in. This link will expire in 30 minutes.</p>
 <p style="text-align:center; margin: 28px 0;">
   <a href="${link}" style="display:inline-block; padding:14px 28px; background:#7a4a1f; color:#fffaf0; text-decoration:none; border-radius:6px; letter-spacing:0.04em;">Open your sign-in link</a>
