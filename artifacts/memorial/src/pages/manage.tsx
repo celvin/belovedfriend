@@ -18,7 +18,7 @@ import {
   getListBlocksQueryKey,
 } from "@workspace/api-client-react";
 import type { TenantUpdatePageConfig } from "@workspace/api-client-react";
-import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp, ShieldOff, ShieldCheck, ArrowUp, ArrowDown, Camera } from "lucide-react";
+import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp, ShieldOff, ShieldCheck, ArrowUp, ArrowDown, Camera, Eye, EyeOff, Clapperboard } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenantSlug } from "@/lib/tenant";
 import { Button } from "@/components/ui/button";
@@ -240,6 +240,16 @@ export default function Manage() {
   const [heroError, setHeroError] = useState<string | null>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Presentation ("Tribute Theater") curation
+  const [presentationCfg, setPresentationCfg] = useState<{ order: number[]; hidden: number[]; autoplay: boolean }>({
+    order: [],
+    hidden: [],
+    autoplay: false,
+  });
+  const [showPresentation, setShowPresentation] = useState(false);
+  const [presentationSaved, setPresentationSaved] = useState(false);
+  const presentationInitRef = useRef(false);
+
   // Eagerly initialize pageSettings when tenant data arrives (needed for top photo section)
   useEffect(() => {
     if (tenant && pageSettings === null) {
@@ -247,6 +257,28 @@ export default function Manage() {
       setPageSettings(buildDefaultSettings(cfg));
     }
   }, [tenant, pageSettings]);
+
+  // Initialize presentation curation from saved config once, then keep the
+  // order in sync as memories are added/removed (new ones append at the end).
+  useEffect(() => {
+    if (!tenant || !messages) return;
+    setPresentationCfg((prev) => {
+      const saved = ((tenant.pageConfig as Record<string, unknown>)?.presentation ?? {}) as {
+        order?: number[];
+        hidden?: number[];
+        autoplay?: boolean;
+      };
+      const base = presentationInitRef.current
+        ? prev
+        : { order: [...(saved.order ?? [])], hidden: [...(saved.hidden ?? [])], autoplay: saved.autoplay === true };
+      presentationInitRef.current = true;
+      const allIds = messages.map((m) => m.id);
+      const known = new Set<number>([...base.order, ...base.hidden]);
+      const order = [...base.order.filter((id) => allIds.includes(id)), ...allIds.filter((id) => !known.has(id))];
+      const hidden = base.hidden.filter((id) => allIds.includes(id));
+      return { ...base, order, hidden };
+    });
+  }, [tenant, messages]);
 
   function handleOpenPageSettings() {
     const cfg = (tenant?.pageConfig ?? {}) as Record<string, unknown>;
@@ -324,7 +356,7 @@ export default function Manage() {
       // Auto-save: build from PERSISTED tenant.pageConfig so unsaved form edits are not written
       const persistedCfg = (tenant.pageConfig ?? {}) as Record<string, unknown>;
       const persistedSettings = buildDefaultSettings(persistedCfg);
-      const pageConfig = buildPageConfig({ ...persistedSettings, heroPhotoPath: objectPath });
+      const pageConfig = { ...buildPageConfig({ ...persistedSettings, heroPhotoPath: objectPath }), presentation: presentationCfg };
       updateTenant.mutate(
         { slug, data: { pageConfig } },
         {
@@ -355,7 +387,7 @@ export default function Manage() {
     // Auto-save: build from PERSISTED tenant.pageConfig so unsaved form edits are not written
     const persistedCfg = (tenant.pageConfig ?? {}) as Record<string, unknown>;
     const persistedSettings = buildDefaultSettings(persistedCfg);
-    const pageConfig = buildPageConfig({ ...persistedSettings, heroPhotoPath: null });
+    const pageConfig = { ...buildPageConfig({ ...persistedSettings, heroPhotoPath: null }), presentation: presentationCfg };
     updateTenant.mutate(
       { slug, data: { pageConfig } },
       {
@@ -369,13 +401,45 @@ export default function Manage() {
     );
   }
 
+  // Presentation curation helpers
+  function movePresentationItem(index: number, dir: -1 | 1) {
+    setPresentationCfg((prev) => {
+      const order = [...prev.order];
+      const j = index + dir;
+      if (j < 0 || j >= order.length) return prev;
+      [order[index], order[j]] = [order[j], order[index]];
+      return { ...prev, order };
+    });
+  }
+  function togglePresentationHidden(id: number) {
+    setPresentationCfg((prev) => ({
+      ...prev,
+      hidden: prev.hidden.includes(id) ? prev.hidden.filter((x) => x !== id) : [...prev.hidden, id],
+    }));
+  }
+  function handleSavePresentation() {
+    setPresentationSaved(false);
+    const persistedCfg = (tenant?.pageConfig ?? {}) as Record<string, unknown>;
+    const pageConfig = { ...buildPageConfig(buildDefaultSettings(persistedCfg)), presentation: presentationCfg };
+    updateTenant.mutate(
+      { slug, data: { pageConfig } },
+      {
+        onSuccess: () => {
+          setPresentationSaved(true);
+          queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(slug) });
+          setTimeout(() => setPresentationSaved(false), 3000);
+        },
+      },
+    );
+  }
+
   function handleSavePageSettings() {
     if (!pageSettings) return;
     setPageSettingsError(null);
     setPageSettingsSaved(false);
 
     updateTenant.mutate(
-      { slug, data: { pageConfig: buildPageConfig(pageSettings) } },
+      { slug, data: { pageConfig: { ...buildPageConfig(pageSettings), presentation: presentationCfg } } },
       {
         onSuccess: () => {
           setPageSettingsSaved(true);
@@ -1053,6 +1117,111 @@ export default function Manage() {
             >
               {updateTenant.isPending ? "Saving…" : "Save page settings"}
             </Button>
+          </div>
+        )}
+      </section>
+
+      {/* Presentation (Tribute Theater) curation */}
+      <section className="bg-card border border-border/40 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition"
+          onClick={() => setShowPresentation((v) => !v)}
+        >
+          <span className="font-serif text-lg flex items-center gap-2">
+            <Clapperboard size={18} /> Presentation
+          </span>
+          {showPresentation ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {showPresentation && (
+          <div className="px-5 pb-5 space-y-4 border-t border-border/30 pt-4">
+            <p className="text-xs text-muted-foreground">
+              Choose which memories play in the fullscreen tribute and in what order. Hidden memories
+              stay on the wall but won't appear in the show.
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="rounded border border-border/60"
+                checked={presentationCfg.autoplay}
+                onChange={(e) => setPresentationCfg((p) => ({ ...p, autoplay: e.target.checked }))}
+              />
+              <span className="text-sm">
+                Auto-start the tribute when the page opens{" "}
+                <span className="text-muted-foreground">(kiosk mode)</span>
+              </span>
+            </label>
+
+            <div className="space-y-1.5">
+              {presentationCfg.order.length === 0 && (
+                <p className="font-serif italic text-muted-foreground text-sm">No memories yet.</p>
+              )}
+              {presentationCfg.order.map((id, i) => {
+                const m = messages?.find((x) => x.id === id);
+                if (!m) return null;
+                const isHidden = presentationCfg.hidden.includes(id);
+                return (
+                  <div
+                    key={id}
+                    className={`flex items-center gap-2 border border-border/30 rounded-md px-2.5 py-2 bg-muted/20 ${isHidden ? "opacity-50" : ""}`}
+                  >
+                    {m.photoPath ? (
+                      <img src={`/api${m.photoPath}`} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                    ) : (
+                      <span className="w-8 h-8 rounded bg-muted shrink-0 flex items-center justify-center text-[9px] uppercase tracking-wide text-muted-foreground">
+                        {m.type}
+                      </span>
+                    )}
+                    <span className="flex-1 min-w-0 text-sm truncate">
+                      {m.authorName}
+                      {isHidden && <span className="text-xs text-muted-foreground"> · hidden</span>}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => movePresentationItem(i, -1)}
+                      disabled={i === 0}
+                      className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      aria-label="Move up"
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => movePresentationItem(i, 1)}
+                      disabled={i === presentationCfg.order.length - 1}
+                      className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      aria-label="Move down"
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => togglePresentationHidden(id)}
+                      className="p-0.5 rounded text-muted-foreground hover:text-foreground"
+                      aria-label={isHidden ? "Show in tribute" : "Hide from tribute"}
+                      title={isHidden ? "Show in tribute" : "Hide from tribute"}
+                    >
+                      {isHidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {presentationSaved && <p className="text-xs text-green-600">Presentation saved.</p>}
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                onClick={handleSavePresentation}
+                disabled={updateTenant.isPending}
+                className="rounded-full font-serif"
+              >
+                {updateTenant.isPending ? "Saving…" : "Save presentation"}
+              </Button>
+              <Link href={`/${slug}/present`} className="text-xs text-primary hover:underline">
+                Preview ▶
+              </Link>
+            </div>
           </div>
         )}
       </section>

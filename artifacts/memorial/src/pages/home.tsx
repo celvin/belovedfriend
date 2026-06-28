@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ReachNetwork } from "@/components/reach-network";
 import { useTenantSlug } from "@/lib/tenant";
@@ -9,9 +9,21 @@ import { useGetTenant } from "@workspace/api-client-react";
 
 export default function Home() {
   const slug = useTenantSlug();
+  const [, setLocation] = useLocation();
   const { data: tenant, isLoading, error } = useGetTenant(slug ?? "", {
     query: { enabled: !!slug, queryKey: [`/api/tenants/${slug}`] },
   });
+
+  // Kiosk auto-launch: if the owner enabled it, opening the page starts the
+  // theater. Skipped once the viewer has exited the theater this session
+  // (a sessionStorage flag set on exit) so it doesn't trap them in a loop.
+  useEffect(() => {
+    if (!tenant || !slug) return;
+    const autoplay = ((tenant.pageConfig as Record<string, unknown> | undefined)?.presentation as { autoplay?: boolean } | undefined)?.autoplay === true;
+    if (!autoplay) return;
+    if (sessionStorage.getItem(`lv-skip-present-${slug}`) === "1") return;
+    setLocation(`/${slug}/present`);
+  }, [tenant, slug, setLocation]);
 
   useEffect(() => {
     if (window.location.hash === "#reach") {

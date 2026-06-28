@@ -61,14 +61,88 @@ export default function Present() {
     else containerRef.current?.requestFullscreen?.().catch(() => {});
   };
 
+  // Soft synthesized ambient pad (no audio asset). Created lazily inside the
+  // sound-toggle gesture so the browser allows it; ducked to silence during
+  // videos so it never competes with a tribute's own audio.
+  const audioRef = useRef<{ ctx: AudioContext; master: GainNode; oscs: OscillatorNode[] } | null>(null);
+  function ensureAudio() {
+    if (audioRef.current) return audioRef.current;
+    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    const ctx = new Ctor();
+    const master = ctx.createGain();
+    master.gain.value = 0;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 640;
+    filter.connect(master);
+    master.connect(ctx.destination);
+    const freqs = [110, 164.81, 220]; // A2 · E3 · A3 — a soft open chord
+    const detunes = [-4, 3, -2];
+    const oscs = freqs.map((f, i) => {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = f;
+      o.detune.value = detunes[i];
+      const g = ctx.createGain();
+      g.gain.value = 0.5;
+      o.connect(g);
+      g.connect(filter);
+      o.start();
+      return o;
+    });
+    audioRef.current = { ctx, master, oscs };
+    return audioRef.current;
+  }
+  function rampAmbient(target: number) {
+    const a = audioRef.current;
+    if (!a) return;
+    a.master.gain.cancelScheduledValues(a.ctx.currentTime);
+    a.master.gain.linearRampToValueAtTime(target, a.ctx.currentTime + 1.0);
+  }
+  function toggleSound() {
+    ensureAudio()?.ctx.resume?.();
+    setMuted((m) => !m);
+  }
+  useEffect(
+    () => () => {
+      const a = audioRef.current;
+      a?.oscs.forEach((o) => {
+        try {
+          o.stop();
+        } catch {
+          /* already stopped */
+        }
+      });
+      a?.ctx.close?.();
+      audioRef.current = null;
+    },
+    [],
+  );
+
   const pc = (tenant?.pageConfig ?? {}) as Record<string, unknown>;
   const accent = ((pc.theme as { accent?: string } | undefined)?.accent) || PALETTE.defaultAccent;
   const heroPhotoPath = (pc.hero as { heroPhotoPath?: string } | undefined)?.heroPhotoPath;
   const yearRange = [tenant?.birthYear, tenant?.deathYear].filter(Boolean).join(" — ") || null;
 
-  // Oldest-first so newly added (higher id) memories append at the end and never
-  // shift the indices of scenes already playing.
-  const orderedMsgs = useMemo(() => [...(messages ?? [])].sort((a, b) => a.id - b.id), [messages]);
+  // Apply the owner's curation: hide excluded memories, honor the explicit
+  // order, then append anything not yet ordered (newest uploads) by id so they
+  // always show without shifting already-ordered scenes.
+  const orderedMsgs = useMemo(() => {
+    const p = ((tenant?.pageConfig as Record<string, unknown> | undefined)?.presentation ?? {}) as {
+      order?: number[];
+      hidden?: number[];
+    };
+    const hidden = new Set(p.hidden ?? []);
+    const orderIdx = new Map((p.order ?? []).map((id, i) => [id, i] as const));
+    return [...(messages ?? [])]
+      .filter((m) => !hidden.has(m.id))
+      .sort((a, b) => {
+        const ai = orderIdx.has(a.id) ? (orderIdx.get(a.id) as number) : Infinity;
+        const bi = orderIdx.has(b.id) ? (orderIdx.get(b.id) as number) : Infinity;
+        return ai !== bi ? ai - bi : a.id - b.id;
+      });
+  }, [messages, tenant?.pageConfig]);
   const hasNodes = (reach?.nodes?.length ?? 0) > 0;
   const scenes = useMemo<Scene[]>(() => {
     const s: Scene[] = [{ kind: "title" }];
@@ -114,6 +188,14 @@ export default function Present() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, playing, sceneDuration, scenes.length]);
 
+  // Ambient level: silent when sound is off or during a video (so it never
+  // competes with a tribute's own audio); a soft hum otherwise.
+  useEffect(() => {
+    const isVideo = scene?.kind === "memory" && scene.message.type === "video" && !!scene.message.videoPath;
+    rampAmbient(muted || isVideo ? 0 : 0.045);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [muted, scene]);
+
   // New-memory flourish (skip the initial load).
   const seenRef = useRef<Set<number> | null>(null);
   const [flourish, setFlourish] = useState(false);
@@ -153,6 +235,12 @@ export default function Present() {
   }, []);
 
   const exit = () => {
+    // Don't auto-relaunch the theater when we land back on the page this session.
+    try {
+      if (slug) sessionStorage.setItem(`lv-skip-present-${slug}`, "1");
+    } catch {
+      /* sessionStorage unavailable */
+    }
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     setLocation(`/${slug}`);
   };
@@ -165,7 +253,7 @@ export default function Present() {
         setPlaying((p) => !p);
       } else if (e.key === "ArrowRight") goNext();
       else if (e.key === "ArrowLeft") goPrev();
-      else if (e.key.toLowerCase() === "m") setMuted((m) => !m);
+      else if (e.key.toLowerCase() === "m") toggleSound();
       else if (e.key === "Escape") exit();
     };
     window.addEventListener("keydown", onKey);
@@ -262,7 +350,7 @@ export default function Present() {
             onToggle={() => setPlaying((p) => !p)}
             onPrev={goPrev}
             onNext={goNext}
-            onMute={() => setMuted((m) => !m)}
+            onMute={toggleSound}
             onFullscreen={toggleFullscreen}
             onExit={exit}
           />
