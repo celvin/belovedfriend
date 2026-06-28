@@ -5,8 +5,13 @@
  * API for the Luis Ventura memorial site
  * OpenAPI spec version: 0.1.0
  */
+import type { MagicLinkRequestIntent } from './magicLinkRequestIntent';
 
 export interface MagicLinkRequest {
   email: string;
   name?: string;
+  /** Tenant slug — used to compute the post-login redirect path */
+  slug?: string;
+  /** Desired post-login action */
+  intent?: MagicLinkRequestIntent;
 }

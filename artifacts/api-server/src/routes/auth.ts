@@ -26,6 +26,20 @@ const MAGIC_LINK_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const RATE_MAX_PER_KEY = 5;
 
+// Compute a safe INTERNAL redirect path from an optional tenant slug + intent.
+// Never returns an absolute URL (open-redirect guard).
+function computeRedirectTo(slug?: string, intent?: string): string {
+  const safeSlug =
+    slug && /^[a-z0-9-]{3,40}$/.test(slug) ? slug.toLowerCase() : null;
+  if (safeSlug) {
+    if (intent === "compose") return `/${safeSlug}/compose`;
+    if (intent === "map") return `/${safeSlug}/map`;
+    return `/${safeSlug}`;
+  }
+  if (intent === "create") return "/create";
+  return "/dashboard";
+}
+
 // Serverless-safe rate limit: count recent magic-link rows for this email or IP.
 async function rateLimited(email: string, ip: string): Promise<boolean> {
   const since = new Date(Date.now() - RATE_WINDOW_MS);
@@ -57,6 +71,7 @@ router.post("/auth/request-link", async (req: Request, res: Response) => {
   }
   const email = parsed.data.email.toLowerCase().trim();
   const name = parsed.data.name?.trim();
+  const redirectTo = computeRedirectTo(parsed.data.slug, parsed.data.intent);
 
   const ip = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim()
     || req.ip
@@ -76,6 +91,7 @@ router.post("/auth/request-link", async (req: Request, res: Response) => {
       tokenHash: hash,
       expiresAt,
       requestIp: ip,
+      redirectTo,
     });
 
     // Best-effort: store name hint for later
@@ -200,6 +216,7 @@ router.post("/auth/verify", async (req: Request, res: Response) => {
         role,
         createdAt: user.createdAt.toISOString(),
       },
+      redirectTo: link.redirectTo ?? "/dashboard",
     });
   } catch (err) {
     req.log.error({ err }, "verify error");

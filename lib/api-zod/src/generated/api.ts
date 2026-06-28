@@ -21,7 +21,9 @@ export const HealthCheckResponse = zod.object({
  */
 export const RequestMagicLinkBody = zod.object({
   "email": zod.string().email(),
-  "name": zod.string().optional()
+  "name": zod.string().optional(),
+  "slug": zod.string().optional().describe('Tenant slug — used to compute the post-login redirect path'),
+  "intent": zod.enum(['compose', 'map', 'create']).optional().describe('Desired post-login action')
 })
 
 export const RequestMagicLinkResponse = zod.object({
@@ -44,7 +46,8 @@ export const VerifyMagicLinkResponse = zod.object({
   "name": zod.string().nullish(),
   "role": zod.enum(['user', 'admin']),
   "createdAt": zod.coerce.date().optional()
-})
+}),
+  "redirectTo": zod.string().describe('Internal path to redirect to after sign-in')
 })
 
 

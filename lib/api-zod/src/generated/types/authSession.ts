@@ -9,4 +9,6 @@ import type { User } from './user';
 
 export interface AuthSession {
   user: User;
+  /** Internal path to redirect to after sign-in */
+  redirectTo: string;
 }

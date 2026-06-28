@@ -14,6 +14,7 @@ export * from './healthStatus';
 export * from './listMessagesParams';
 export * from './listMessagesType';
 export * from './magicLinkRequest';
+export * from './magicLinkRequestIntent';
 export * from './message';
 export * from './messageInput';
 export * from './messageInputType';

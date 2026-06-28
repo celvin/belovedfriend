@@ -14,9 +14,25 @@ export interface SimpleOk {
   message?: string;
 }
 
+/**
+ * Desired post-login action
+ */
+export type MagicLinkRequestIntent = typeof MagicLinkRequestIntent[keyof typeof MagicLinkRequestIntent];
+
+
+export const MagicLinkRequestIntent = {
+  compose: 'compose',
+  map: 'map',
+  create: 'create',
+} as const;
+
 export interface MagicLinkRequest {
   email: string;
   name?: string;
+  /** Tenant slug — used to compute the post-login redirect path */
+  slug?: string;
+  /** Desired post-login action */
+  intent?: MagicLinkRequestIntent;
 }
 
 export interface VerifyTokenInput {
@@ -47,6 +63,8 @@ export interface CurrentUser {
 
 export interface AuthSession {
   user: User;
+  /** Internal path to redirect to after sign-in */
+  redirectTo: string;
 }
 
 export type CardDesignLayout = typeof CardDesignLayout[keyof typeof CardDesignLayout];

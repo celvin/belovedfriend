@@ -360,6 +360,11 @@ components:
       properties:
         email: { type: string, format: email }
         name: { type: string }
+        slug: { type: string, description: "Tenant slug — used to compute the post-login redirect path" }
+        intent:
+          type: string
+          enum: [compose, map, create]
+          description: "Desired post-login action"
 
     VerifyTokenInput:
       type: object
@@ -391,9 +396,10 @@ components:
 
     AuthSession:
       type: object
-      required: [user]
+      required: [user, redirectTo]
       properties:
         user: { $ref: "#/components/schemas/User" }
+        redirectTo: { type: string, description: "Internal path to redirect to after sign-in" }
 
     CardDesign:
       type: object
