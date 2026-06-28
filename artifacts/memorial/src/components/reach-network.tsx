@@ -893,6 +893,7 @@ function NodeMarker({
   const [editLocation, setEditLocation] = useState("");
   const [editBody, setEditBody] = useState("");
   const [editUrl, setEditUrl] = useState("");
+  const [editUrlError, setEditUrlError] = useState<string | null>(null);
 
   // Hooks called once at top level — not inside map()
   const updateMutation = useUpdateMessage();
@@ -938,27 +939,41 @@ function NodeMarker({
 
   function handleSave() {
     if (!editingMsg) return;
+    setEditUrlError(null);
+
+    const trimmedName = editAuthorName.trim();
+    const trimmedUrl = editUrl.trim();
+
+    if (editingMsg.type === "link" && !trimmedUrl) {
+      setEditUrlError("A link needs a URL");
+      return;
+    }
+
+    const baseFields: {
+      authorName?: string;
+      relationship: string | null;
+      location: string | null;
+    } = {
+      relationship: editRelationship.trim() || null,
+      location: editLocation.trim() || null,
+    };
+    if (trimmedName.length > 0) baseFields.authorName = trimmedName;
+
     const data =
       editingMsg.type === "card"
         ? {
-            authorName: editAuthorName,
-            relationship: editRelationship || null,
-            location: editLocation || null,
+            ...baseFields,
             card: { ...editingMsg.card, body: editBody },
           }
         : editingMsg.type === "link"
         ? {
-            authorName: editAuthorName,
-            relationship: editRelationship || null,
-            location: editLocation || null,
-            body: editBody || null,
-            url: editUrl,
+            ...baseFields,
+            body: editBody.trim() || null,
+            url: trimmedUrl,
           }
         : {
-            authorName: editAuthorName,
-            relationship: editRelationship || null,
-            location: editLocation || null,
-            body: editBody || null,
+            ...baseFields,
+            body: editBody.trim() || null,
           };
 
     updateMutation.mutate(
@@ -1256,9 +1271,10 @@ function NodeMarker({
                   <Input
                     id="nm-edit-url"
                     value={editUrl}
-                    onChange={(e) => setEditUrl(e.target.value)}
+                    onChange={(e) => { setEditUrl(e.target.value); setEditUrlError(null); }}
                     placeholder="https://"
                   />
+                  {editUrlError && <p className="text-xs text-destructive">{editUrlError}</p>}
                 </div>
               </>
             )}

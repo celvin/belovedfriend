@@ -243,18 +243,21 @@ export default function Manage() {
 
   async function handleHeroPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !pageSettings) return;
+    if (!file || !tenant) return;
     setHeroUploading(true);
     setPageSettingsError(null);
     setHeroError(null);
     setHeroSaved(false);
     try {
       const objectPath = await uploadFile(file, file.type);
+      // Update local preview
       setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: objectPath } : prev);
-      // Auto-save: assemble config with the new heroPhotoPath (use objectPath directly, not state)
-      const updatedSettings = { ...pageSettings, heroPhotoPath: objectPath };
+      // Auto-save: build from PERSISTED tenant.pageConfig so unsaved form edits are not written
+      const persistedCfg = (tenant.pageConfig ?? {}) as Record<string, unknown>;
+      const persistedSettings = buildDefaultSettings(persistedCfg);
+      const pageConfig = buildPageConfig({ ...persistedSettings, heroPhotoPath: objectPath });
       updateTenant.mutate(
-        { slug, data: { pageConfig: buildPageConfig(updatedSettings) } },
+        { slug, data: { pageConfig } },
         {
           onSuccess: () => {
             setHeroSaved(true);
@@ -275,14 +278,17 @@ export default function Manage() {
   }
 
   function handleRemoveHeroPhoto() {
-    if (!pageSettings) return;
+    if (!tenant) return;
     setHeroSaved(false);
     setHeroError(null);
-    const newPath = null;
-    setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: newPath } : prev);
-    const updatedSettings = { ...pageSettings, heroPhotoPath: newPath };
+    // Update local preview
+    setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: null } : prev);
+    // Auto-save: build from PERSISTED tenant.pageConfig so unsaved form edits are not written
+    const persistedCfg = (tenant.pageConfig ?? {}) as Record<string, unknown>;
+    const persistedSettings = buildDefaultSettings(persistedCfg);
+    const pageConfig = buildPageConfig({ ...persistedSettings, heroPhotoPath: null });
     updateTenant.mutate(
-      { slug, data: { pageConfig: buildPageConfig(updatedSettings) } },
+      { slug, data: { pageConfig } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(slug) });

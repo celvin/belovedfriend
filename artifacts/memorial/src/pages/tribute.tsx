@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useGetMessage, useUpdateMessage, useDeleteMessage, getGetMessageQueryKey } from "@workspace/api-client-react";
+import { useGetMessage, useUpdateMessage, useDeleteMessage, getGetMessageQueryKey, getListMessagesQueryKey } from "@workspace/api-client-react";
 import { useParams, Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ export default function Tribute() {
   const [editLocation, setEditLocationValue] = useState("");
   const [editBody, setEditBody] = useState("");
   const [editUrl, setEditUrl] = useState("");
+  const [editUrlError, setEditUrlError] = useState<string | null>(null);
 
   const isAuthor =
     message != null &&
@@ -57,6 +58,7 @@ export default function Tribute() {
       { slug, id: Number(id) },
       {
         onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
           setLocation(`/${slug}/wall`);
         },
       }
@@ -65,27 +67,41 @@ export default function Tribute() {
 
   function handleSave() {
     if (!message) return;
+    setEditUrlError(null);
+
+    const trimmedName = editAuthorName.trim();
+    const trimmedUrl = editUrl.trim();
+
+    if (message.type === "link" && !trimmedUrl) {
+      setEditUrlError("A link needs a URL");
+      return;
+    }
+
+    const baseFields: {
+      authorName?: string;
+      relationship: string | null;
+      location: string | null;
+    } = {
+      relationship: editRelationship.trim() || null,
+      location: editLocation.trim() || null,
+    };
+    if (trimmedName.length > 0) baseFields.authorName = trimmedName;
+
     const data =
       message.type === "card"
         ? {
-            authorName: editAuthorName,
-            relationship: editRelationship || null,
-            location: editLocation || null,
+            ...baseFields,
             card: { ...message.card, body: editBody },
           }
         : message.type === "link"
         ? {
-            authorName: editAuthorName,
-            relationship: editRelationship || null,
-            location: editLocation || null,
-            body: editBody || null,
-            url: editUrl,
+            ...baseFields,
+            body: editBody.trim() || null,
+            url: trimmedUrl,
           }
         : {
-            authorName: editAuthorName,
-            relationship: editRelationship || null,
-            location: editLocation || null,
-            body: editBody || null,
+            ...baseFields,
+            body: editBody.trim() || null,
           };
 
     updateMutation.mutate(
@@ -95,6 +111,7 @@ export default function Tribute() {
           queryClient.invalidateQueries({
             queryKey: getGetMessageQueryKey(slug, Number(id)),
           });
+          queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
           setEditOpen(false);
         },
       }
@@ -316,9 +333,10 @@ export default function Tribute() {
                   <Input
                     id="tribute-url"
                     value={editUrl}
-                    onChange={(e) => setEditUrl(e.target.value)}
+                    onChange={(e) => { setEditUrl(e.target.value); setEditUrlError(null); }}
                     placeholder="https://"
                   />
+                  {editUrlError && <p className="text-xs text-destructive">{editUrlError}</p>}
                 </div>
               </>
             )}
