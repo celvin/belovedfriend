@@ -2,14 +2,15 @@
 -- PostgreSQL database dump
 --
 
-\restrict r9iVgLUIFVxBD3xWFHWETBTVsyOqqOC6bm3qYPzAlt0ZsoYlKLAtEsn95h4reJh
+\restrict oEVfjzB9WlrdPvZ8r0m1nnUIcF1QiALUzZ4b6HB0na4PEVWZRletwrf5Xgwtgef
 
--- Dumped from database version 16.10
--- Dumped by pg_dump version 16.10
+-- Dumped from database version 17.10 (9f6157c)
+-- Dumped by pg_dump version 17.10 (Homebrew)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -103,8 +104,8 @@ CREATE TABLE public.users (
     id integer NOT NULL,
     email text NOT NULL,
     name text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    role text DEFAULT 'user'::text NOT NULL
+    role text DEFAULT 'user'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -193,5 +194,5 @@ ALTER TABLE ONLY public.users
 -- PostgreSQL database dump complete
 --
 
-\unrestrict r9iVgLUIFVxBD3xWFHWETBTVsyOqqOC6bm3qYPzAlt0ZsoYlKLAtEsn95h4reJh
+\unrestrict oEVfjzB9WlrdPvZ8r0m1nnUIcF1QiALUzZ4b6HB0na4PEVWZRletwrf5Xgwtgef
 
