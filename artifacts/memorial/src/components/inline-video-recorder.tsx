@@ -19,11 +19,13 @@ interface Props {
   slug: string;
   defaultLocation?: string;
   contextLabel?: string;
+  /** Attach the video to a reach-map marker so it shows in that marker's memories. */
+  nodeId?: number;
   onSaved?: () => void;
   onCancel?: () => void;
 }
 
-export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, onSaved, onCancel }: Props) {
+export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, nodeId, onSaved, onCancel }: Props) {
   const { data: currentUser, isLoading: authLoading } = useGetCurrentUser();
   const isAuthenticated = currentUser?.authenticated ?? false;
 
@@ -170,6 +172,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
           authorName: authorName.trim(),
           relationship: relationship.trim() || undefined,
           location: locationInput.trim() || undefined,
+          ...(nodeId != null ? { nodeId } : {}),
         },
       });
       await queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });

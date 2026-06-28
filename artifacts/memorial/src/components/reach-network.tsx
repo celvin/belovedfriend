@@ -1212,9 +1212,11 @@ function NodeMarker({
               slug={slug}
               defaultLocation={defaultLocation}
               contextLabel={node.label}
+              nodeId={node.id}
               onCancel={() => setRecording(false)}
               onSaved={() => {
                 setRecording(false);
+                queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
               }}
             />
           ) : hasMany ? (

@@ -211,14 +211,10 @@ router.post("/t/:slug/messages", requireAuth, async (req: Request, res: Response
     return;
   }
   try {
-    const userRows = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, sess.uid))
-      .limit(1);
-    const user = userRows[0];
-    const authorName =
-      (data.authorName?.trim() || user?.name?.trim() || user?.email.split("@")[0] || "Friend");
+    // Leaving the name blank shows a neutral label — never another user's name,
+    // nor a name typed on a previous tribute. The displayed name is only ever
+    // what the author explicitly enters on THIS tribute.
+    const authorName = data.authorName?.trim() || "A friend";
 
     const inserted = await db
       .insert(messagesTable)
@@ -237,13 +233,6 @@ router.post("/t/:slug/messages", requireAuth, async (req: Request, res: Response
         nodeId: data.nodeId ?? null,
       })
       .returning();
-
-    if (data.authorName && data.authorName.trim() && !user?.name) {
-      await db
-        .update(usersTable)
-        .set({ name: data.authorName.trim() })
-        .where(eq(usersTable.id, sess.uid));
-    }
 
     res.status(201).json(serialize(inserted[0]!));
   } catch (err) {
