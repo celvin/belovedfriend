@@ -49,6 +49,7 @@ export function CardDesigner({ slug, nodeId }: Props) {
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,7 +68,9 @@ export function CardDesigner({ slug, nodeId }: Props) {
 
   const handleSave = async () => {
     if (!body || !authorName) return;
+    if (busy) return;
 
+    setBusy(true);
     try {
       let objectPath: string | null = null;
 
@@ -103,10 +106,12 @@ export function CardDesigner({ slug, nodeId }: Props) {
 
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to save card." });
+    } finally {
+      setBusy(false);
     }
   };
 
-  const isSaving = createMessage.isPending;
+  const isSaving = busy || createMessage.isPending;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
