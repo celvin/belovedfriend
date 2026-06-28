@@ -92,6 +92,11 @@ async function isSuperAdmin(userId: number): Promise<boolean> {
   return rows[0]?.role === "admin";
 }
 
+export async function isOwnerOrAdmin(tenant: TenantRow, userId: number): Promise<boolean> {
+  if (tenant.ownerUserId === userId) return true;
+  return isSuperAdmin(userId);
+}
+
 export async function isBlocked(tenantId: number, userId: number): Promise<boolean> {
   const rows = await db
     .select({ id: tenantBlocksTable.id })
