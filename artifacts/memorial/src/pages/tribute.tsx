@@ -1,15 +1,122 @@
-import { useGetMessage } from "@workspace/api-client-react";
-import { useParams, Link } from "wouter";
+import { useState } from "react";
+import { useGetMessage, useUpdateMessage, useDeleteMessage, getGetMessageQueryKey, getListMessagesQueryKey } from "@workspace/api-client-react";
+import { useParams, Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { useTenantSlug } from "@/lib/tenant";
+import { useAuth } from "@/hooks/use-auth";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Tribute() {
   const slug = useTenantSlug() ?? "";
   const { id } = useParams<{ id: string }>();
   const { data: message, isLoading, error } = useGetMessage(slug, Number(id));
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+
+  const updateMutation = useUpdateMessage();
+  const deleteMutation = useDeleteMessage();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editAuthorName, setEditAuthorName] = useState("");
+  const [editRelationship, setEditRelationship] = useState("");
+  const [editLocation, setEditLocationValue] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editUrlError, setEditUrlError] = useState<string | null>(null);
+
+  const isAuthor =
+    message != null &&
+    message.userId != null &&
+    message.userId === user?.id;
+
+  function openEdit() {
+    if (!message) return;
+    setEditAuthorName(message.authorName);
+    setEditRelationship(message.relationship ?? "");
+    setEditLocationValue(message.location ?? "");
+    setEditBody(
+      message.type === "card"
+        ? (message.card?.body as string | undefined ?? "")
+        : (message.body ?? "")
+    );
+    setEditUrl(message.url ?? "");
+    setEditOpen(true);
+  }
+
+  function handleDelete() {
+    if (!message) return;
+    if (!window.confirm("Are you sure you want to delete this tribute?")) return;
+    deleteMutation.mutate(
+      { slug, id: Number(id) },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
+          setLocation(`/${slug}/wall`);
+        },
+      }
+    );
+  }
+
+  function handleSave() {
+    if (!message) return;
+    setEditUrlError(null);
+
+    const trimmedName = editAuthorName.trim();
+    const trimmedUrl = editUrl.trim();
+
+    if (message.type === "link" && !trimmedUrl) {
+      setEditUrlError("A link needs a URL");
+      return;
+    }
+
+    const baseFields: {
+      authorName?: string;
+      relationship: string | null;
+      location: string | null;
+    } = {
+      relationship: editRelationship.trim() || null,
+      location: editLocation.trim() || null,
+    };
+    if (trimmedName.length > 0) baseFields.authorName = trimmedName;
+
+    const data =
+      message.type === "card"
+        ? {
+            ...baseFields,
+            card: { ...message.card, body: editBody },
+          }
+        : message.type === "link"
+        ? {
+            ...baseFields,
+            body: editBody.trim() || null,
+            url: trimmedUrl,
+          }
+        : {
+            ...baseFields,
+            body: editBody.trim() || null,
+          };
+
+    updateMutation.mutate(
+      { slug, id: Number(id), data },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({
+            queryKey: getGetMessageQueryKey(slug, Number(id)),
+          });
+          queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
+          setEditOpen(false);
+        },
+      }
+    );
+  }
 
   if (isLoading) {
     return (
@@ -125,12 +232,125 @@ export default function Tribute() {
                 </p>
               )}
             </div>
-            <div className="text-sm text-muted-foreground italic">
-              {format(new Date(message.createdAt), "MMMM d, yyyy")}
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-muted-foreground italic">
+                {format(new Date(message.createdAt), "MMMM d, yyyy")}
+              </div>
+              {isAuthor && (
+                <div className="flex gap-1 bg-background/80 rounded-lg p-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={openEdit}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 hover:text-red-500"
+                    onClick={handleDelete}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
       </div>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Tribute</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="tribute-author-name">Name</Label>
+              <Input
+                id="tribute-author-name"
+                value={editAuthorName}
+                onChange={(e) => setEditAuthorName(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="tribute-relationship">Relationship (optional)</Label>
+              <Input
+                id="tribute-relationship"
+                value={editRelationship}
+                onChange={(e) => setEditRelationship(e.target.value)}
+                placeholder="e.g. Friend, Colleague"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="tribute-location">Location (optional)</Label>
+              <Input
+                id="tribute-location"
+                value={editLocation}
+                onChange={(e) => setEditLocationValue(e.target.value)}
+                placeholder="City, Country"
+              />
+            </div>
+            {message.type === "card" && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="tribute-body">Message</Label>
+                <Textarea
+                  id="tribute-body"
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            )}
+            {message.type === "video" && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="tribute-body">Caption (optional)</Label>
+                <Textarea
+                  id="tribute-body"
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            )}
+            {message.type === "link" && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="tribute-body">Description (optional)</Label>
+                  <Textarea
+                    id="tribute-body"
+                    value={editBody}
+                    onChange={(e) => setEditBody(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="tribute-url">URL</Label>
+                  <Input
+                    id="tribute-url"
+                    value={editUrl}
+                    onChange={(e) => { setEditUrl(e.target.value); setEditUrlError(null); }}
+                    placeholder="https://"
+                  />
+                  {editUrlError && <p className="text-xs text-destructive">{editUrlError}</p>}
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

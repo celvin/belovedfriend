@@ -8,6 +8,8 @@ import {
   useCreateReachNode,
   useCreateReachEdge,
   useListMessages,
+  useUpdateMessage,
+  useDeleteMessage,
   getGetReachQueryKey,
   getGetTenantQueryKey,
   getListMessagesQueryKey,
@@ -15,10 +17,15 @@ import {
   type ReachNode,
   type Message,
 } from "@workspace/api-client-react";
-import { X, Play, Plus, Network, Globe, Maximize2, Minimize2 } from "lucide-react";
+import { X, Play, Plus, Network, Globe, Maximize2, Minimize2, Pencil, Trash2 } from "lucide-react";
 import { InlineVideoRecorder } from "@/components/inline-video-recorder";
 import { WorldMap, type PlottedNode } from "@/components/world-map";
 import { useAuth } from "@/hooks/use-auth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 interface PositionedNode extends ReachNode {
   x: number;
@@ -418,7 +425,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
   const { data: messages } = useListMessages(slug, messagesParams, {
     query: { enabled: !!slug, queryKey: getListMessagesQueryKey(slug, messagesParams) },
   });
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1, h: 600 });
   const [nodes, setNodes] = useState<PositionedNode[]>([]);
@@ -829,6 +836,8 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
               size={size}
               nodeTributes={(messages ?? []).filter((m) => m.nodeId === selectedLive.id)}
               onClose={() => setSelected(null)}
+              user={user}
+              isAuthenticated={isAuthenticated}
             />
           )}
         </AnimatePresence>
@@ -862,17 +871,126 @@ function NodeMarker({
   size,
   nodeTributes,
   onClose,
+  user,
+  isAuthenticated,
 }: {
   node: PositionedNode;
   slug: string;
   size: { w: number; h: number };
   nodeTributes: Message[];
   onClose: () => void;
+  user: { id: number } | null | undefined;
+  isAuthenticated: boolean;
 }) {
+  const queryClient = useQueryClient();
   const [recording, setRecording] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  // Edit state
+  const [editingMsg, setEditingMsg] = useState<Message | null>(null);
+  const [editAuthorName, setEditAuthorName] = useState("");
+  const [editRelationship, setEditRelationship] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editUrlError, setEditUrlError] = useState<string | null>(null);
+
+  // Hooks called once at top level — not inside map()
+  const updateMutation = useUpdateMessage();
+  const deleteMutation = useDeleteMessage();
+
+  // When a node with >2 tributes is selected, auto-open the modal
+  useEffect(() => {
+    if (nodeTributes.length > 2) {
+      setModalOpen(true);
+    } else {
+      setModalOpen(false);
+    }
+  }, [node.id, nodeTributes.length]);
+
+  function isAuthor(t: Message) {
+    return t.userId != null && t.userId === user?.id;
+  }
+
+  function openEdit(msg: Message, e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditingMsg(msg);
+    setEditAuthorName(msg.authorName);
+    setEditRelationship(msg.relationship ?? "");
+    setEditLocation(msg.location ?? "");
+    setEditBody(msg.type === "card" ? (msg.card?.body as string | undefined ?? "") : (msg.body ?? ""));
+    setEditUrl(msg.url ?? "");
+  }
+
+  function handleDelete(msg: Message, e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!window.confirm("Are you sure you want to delete this tribute?")) return;
+    deleteMutation.mutate(
+      { slug, id: msg.id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
+        },
+      }
+    );
+  }
+
+  function handleSave() {
+    if (!editingMsg) return;
+    setEditUrlError(null);
+
+    const trimmedName = editAuthorName.trim();
+    const trimmedUrl = editUrl.trim();
+
+    if (editingMsg.type === "link" && !trimmedUrl) {
+      setEditUrlError("A link needs a URL");
+      return;
+    }
+
+    const baseFields: {
+      authorName?: string;
+      relationship: string | null;
+      location: string | null;
+    } = {
+      relationship: editRelationship.trim() || null,
+      location: editLocation.trim() || null,
+    };
+    if (trimmedName.length > 0) baseFields.authorName = trimmedName;
+
+    const data =
+      editingMsg.type === "card"
+        ? {
+            ...baseFields,
+            card: { ...editingMsg.card, body: editBody },
+          }
+        : editingMsg.type === "link"
+        ? {
+            ...baseFields,
+            body: editBody.trim() || null,
+            url: trimmedUrl,
+          }
+        : {
+            ...baseFields,
+            body: editBody.trim() || null,
+          };
+
+    updateMutation.mutate(
+      { slug, id: editingMsg.id, data },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
+          setEditingMsg(null);
+        },
+      }
+    );
+  }
+
   const hasTributes = nodeTributes.length > 0;
+  const hasMany = nodeTributes.length > 2;
   const cardW = recording ? 360 : 320;
-  const cardH = recording ? 460 : hasTributes ? 300 + nodeTributes.length * 36 : 240;
+  const cardH = recording ? 460 : hasTributes ? 300 + Math.min(nodeTributes.length, 2) * 36 : 240;
   const margin = 12;
   let left = node.x + node.radius + 14;
   let top = node.y - cardH / 2;
@@ -886,87 +1004,291 @@ function NodeMarker({
       ? node.label
       : "";
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1, width: cardW }}
-      exit={{ opacity: 0, scale: 0.92 }}
-      transition={{ duration: 0.2 }}
-      style={{ left, top }}
-      className="absolute z-10 bg-card/95 backdrop-blur-md border border-border/60 rounded-xl shadow-xl overflow-hidden"
-    >
-      <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2 border-b border-border/40">
-        <div className="min-w-0">
-          <div className="text-[10px] tracking-widest uppercase text-muted-foreground">
-            {categoryLabel(node.category)}
-          </div>
-          <div className="font-serif text-lg leading-tight text-foreground truncate">
-            {node.label}
-          </div>
+  // Affordances section — reused in both popover and modal
+  function AddAffordances() {
+    if (isAuthenticated) {
+      return (
+        <div className="pt-1 space-y-2 border-t border-border/30">
+          <Link
+            href={`/${slug}/compose?node=${node.id}`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+          >
+            <Play size={12} /> Share a memory from here →
+          </Link>
+          <button
+            type="button"
+            onClick={() => { setModalOpen(false); setRecording(true); }}
+            className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/5 rounded-md py-2 border border-dashed border-primary/30"
+          >
+            <Plus size={12} /> Record a video tribute here
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className="text-muted-foreground hover:text-foreground p-1 -mt-1 -mr-1 rounded"
+      );
+    }
+    return (
+      <div className="pt-1 border-t border-border/30">
+        <Link
+          href={`/sign-in?slug=${slug}&intent=compose`}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition"
         >
-          <X size={16} />
-        </button>
+          Sign in to share a memory from here →
+        </Link>
       </div>
-      {node.note && (
-        <p className="px-4 py-2 text-xs italic text-muted-foreground border-b border-border/30">
-          {node.note}
-        </p>
-      )}
-      <div className="px-4 py-3">
-        {recording ? (
-          <InlineVideoRecorder
-            slug={slug}
-            defaultLocation={defaultLocation}
-            contextLabel={node.label}
-            onCancel={() => setRecording(false)}
-            onSaved={() => {
-              setRecording(false);
-            }}
-          />
-        ) : (
-          <div className="space-y-3">
-            {/* Tributes attached to this node */}
-            {hasTributes ? (
-              <div className="space-y-1.5">
-                <div className="text-[10px] tracking-widest uppercase text-muted-foreground">Memories from here</div>
-                {nodeTributes.map((t) => (
-                  <Link
-                    key={t.id}
-                    href={`/${slug}/tribute/${t.id}`}
-                    className="flex items-center gap-2 text-xs text-foreground hover:text-primary transition truncate"
-                  >
-                    <Play size={10} className="shrink-0 text-primary/60" />
-                    <span className="truncate">{t.authorName}</span>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">No memories yet from this place.</p>
-            )}
-            {/* Add affordances */}
-            <div className="pt-1 space-y-2 border-t border-border/30">
-              <Link
-                href={`/${slug}/compose?node=${node.id}`}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-              >
-                <Play size={12} /> Share a memory from here →
-              </Link>
-              <button
-                type="button"
-                onClick={() => setRecording(true)}
-                className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/5 rounded-md py-2 border border-dashed border-primary/30"
-              >
-                <Plus size={12} /> Record a video tribute here
-              </button>
+    );
+  }
+
+  return (
+    <>
+      {/* Compact popover — always shown for ≤2 tributes; shown as summary card for >2 */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92 }}
+        animate={{ opacity: 1, scale: 1, width: cardW }}
+        exit={{ opacity: 0, scale: 0.92 }}
+        transition={{ duration: 0.2 }}
+        style={{ left, top }}
+        className="absolute z-10 bg-card/95 backdrop-blur-md border border-border/60 rounded-xl shadow-xl overflow-hidden"
+      >
+        <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2 border-b border-border/40">
+          <div className="min-w-0">
+            <div className="text-[10px] tracking-widest uppercase text-muted-foreground">
+              {categoryLabel(node.category)}
+            </div>
+            <div className="font-serif text-lg leading-tight text-foreground truncate">
+              {node.label}
             </div>
           </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-muted-foreground hover:text-foreground p-1 -mt-1 -mr-1 rounded"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        {node.note && (
+          <p className="px-4 py-2 text-xs italic text-muted-foreground border-b border-border/30">
+            {node.note}
+          </p>
         )}
-      </div>
-    </motion.div>
+        <div className="px-4 py-3">
+          {recording ? (
+            <InlineVideoRecorder
+              slug={slug}
+              defaultLocation={defaultLocation}
+              contextLabel={node.label}
+              onCancel={() => setRecording(false)}
+              onSaved={() => {
+                setRecording(false);
+              }}
+            />
+          ) : hasMany ? (
+            /* >2 tributes: show summary + open modal button */
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                {nodeTributes.length} memories from this place.
+              </p>
+              <button
+                type="button"
+                onClick={() => setModalOpen(true)}
+                className="w-full text-xs font-medium text-primary hover:underline text-left"
+              >
+                View all memories →
+              </button>
+              <AddAffordances />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Tributes attached to this node (≤2) */}
+              {hasTributes ? (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] tracking-widest uppercase text-muted-foreground">Memories from here</div>
+                  {nodeTributes.map((t) => (
+                    <div key={t.id} className="flex items-center gap-1 group">
+                      <Link
+                        href={`/${slug}/tribute/${t.id}`}
+                        className="flex items-center gap-2 text-xs text-foreground hover:text-primary transition truncate flex-1 min-w-0"
+                      >
+                        <Play size={10} className="shrink-0 text-primary/60" />
+                        <span className="truncate">{t.authorName}</span>
+                      </Link>
+                      {isAuthor(t) && (
+                        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
+                          <button
+                            type="button"
+                            title="Edit"
+                            onClick={(e) => openEdit(t, e)}
+                            className="p-0.5 rounded text-muted-foreground hover:text-foreground"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                          <button
+                            type="button"
+                            title="Delete"
+                            onClick={(e) => handleDelete(t, e)}
+                            disabled={deleteMutation.isPending}
+                            className="p-0.5 rounded text-muted-foreground hover:text-destructive disabled:opacity-50"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No memories yet from this place.</p>
+              )}
+              <AddAffordances />
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Modal for >2 tributes */}
+      <Dialog open={modalOpen} onOpenChange={(open) => { if (!open) { setModalOpen(false); onClose(); } }}>
+        <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-serif">{node.label}</DialogTitle>
+            {node.note && (
+              <p className="text-xs italic text-muted-foreground pt-1">{node.note}</p>
+            )}
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1">
+            <div className="text-[10px] tracking-widest uppercase text-muted-foreground mb-2">
+              {nodeTributes.length} memories from here
+            </div>
+            {nodeTributes.map((t) => (
+              <div key={t.id} className="flex items-center gap-2 group py-1">
+                <Link
+                  href={`/${slug}/tribute/${t.id}`}
+                  className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition min-w-0 flex-1"
+                  onClick={() => setModalOpen(false)}
+                >
+                  <Play size={12} className="shrink-0 text-primary/60" />
+                  <span className="truncate">{t.authorName}</span>
+                  {t.relationship && (
+                    <span className="text-xs text-muted-foreground shrink-0">· {t.relationship}</span>
+                  )}
+                </Link>
+                {isAuthor(t) && (
+                  <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      type="button"
+                      title="Edit"
+                      onClick={(e) => openEdit(t, e)}
+                      className="p-1 rounded text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Delete"
+                      onClick={(e) => handleDelete(t, e)}
+                      disabled={deleteMutation.isPending}
+                      className="p-1 rounded text-muted-foreground hover:text-destructive disabled:opacity-50"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-border/40 pt-3">
+            <AddAffordances />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editingMsg} onOpenChange={(open) => !open && setEditingMsg(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Tribute</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="nm-edit-author-name">Name</Label>
+              <Input
+                id="nm-edit-author-name"
+                value={editAuthorName}
+                onChange={(e) => setEditAuthorName(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="nm-edit-relationship">Relationship (optional)</Label>
+              <Input
+                id="nm-edit-relationship"
+                value={editRelationship}
+                onChange={(e) => setEditRelationship(e.target.value)}
+                placeholder="e.g. Friend, Colleague"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="nm-edit-location">Location (optional)</Label>
+              <Input
+                id="nm-edit-location"
+                value={editLocation}
+                onChange={(e) => setEditLocation(e.target.value)}
+                placeholder="City, Country"
+              />
+            </div>
+            {editingMsg?.type === "card" && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nm-edit-body">Message</Label>
+                <Textarea
+                  id="nm-edit-body"
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            )}
+            {editingMsg?.type === "video" && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nm-edit-body">Caption (optional)</Label>
+                <Textarea
+                  id="nm-edit-body"
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            )}
+            {editingMsg?.type === "link" && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="nm-edit-body">Description (optional)</Label>
+                  <Textarea
+                    id="nm-edit-body"
+                    value={editBody}
+                    onChange={(e) => setEditBody(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="nm-edit-url">URL</Label>
+                  <Input
+                    id="nm-edit-url"
+                    value={editUrl}
+                    onChange={(e) => { setEditUrl(e.target.value); setEditUrlError(null); }}
+                    placeholder="https://"
+                  />
+                  {editUrlError && <p className="text-xs text-destructive">{editUrlError}</p>}
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMsg(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

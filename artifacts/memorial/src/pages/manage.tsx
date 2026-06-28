@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Link } from "wouter";
+import { useState, useRef, useEffect } from "react";
+import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListMessages,
@@ -17,7 +17,7 @@ import {
   getListBlocksQueryKey,
 } from "@workspace/api-client-react";
 import type { TenantUpdatePageConfig } from "@workspace/api-client-react";
-import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp, ShieldOff, ShieldCheck, ArrowUp, ArrowDown } from "lucide-react";
+import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp, ShieldOff, ShieldCheck, ArrowUp, ArrowDown, Camera } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenantSlug } from "@/lib/tenant";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,41 @@ const DERIVED_OPTIONS = [
   { value: "contributorCount", label: "Contributor count" },
   { value: "countryCount", label: "Country count" },
 ] as const;
+
+function buildPageConfig(settings: PageSettingsState): TenantUpdatePageConfig {
+  return {
+    version: 1 as const,
+    theme: {
+      palette: settings.palette,
+      accent: settings.accent,
+      font: settings.font,
+    },
+    hero: {
+      heroPhotoPath: settings.heroPhotoPath,
+      showDates: settings.showDates,
+    },
+    story: {
+      enabled: settings.storyEnabled,
+      blocks: settings.storyBlocks.map((b) => ({ heading: b.heading, body: b.body })),
+    },
+    sections: {
+      order: settings.sectionsOrder,
+      story: settings.sectionStory,
+      wall: settings.sectionWall,
+      reach: settings.sectionReach,
+    },
+    reachSummary: settings.reachSummary.map((r) => {
+      if (r.mode === "derived") {
+        return { label: r.label, derived: r.derived };
+      }
+      return { label: r.label, value: r.value };
+    }),
+    cta: {
+      primaryLabel: settings.primaryLabel,
+      wallLabel: settings.wallLabel,
+    },
+  };
+}
 
 function buildDefaultSettings(cfg: Record<string, unknown>): PageSettingsState {
   const themeCfg = ((cfg.theme ?? {}) as Record<string, unknown>);
@@ -120,6 +155,7 @@ function buildDefaultSettings(cfg: Record<string, unknown>): PageSettingsState {
 export default function Manage() {
   const slug = useTenantSlug() ?? "";
   const { isAdmin, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
   const { data: mine, isLoading: mineLoading } = useListMyTenants({
     query: { enabled: isAuthenticated, queryKey: getListMyTenantsQueryKey() },
   });
@@ -177,7 +213,17 @@ export default function Manage() {
   const [pageSettingsError, setPageSettingsError] = useState<string | null>(null);
   const [pageSettingsSaved, setPageSettingsSaved] = useState(false);
   const [heroUploading, setHeroUploading] = useState(false);
+  const [heroSaved, setHeroSaved] = useState(false);
+  const [heroError, setHeroError] = useState<string | null>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Eagerly initialize pageSettings when tenant data arrives (needed for top photo section)
+  useEffect(() => {
+    if (tenant && pageSettings === null) {
+      const cfg = (tenant.pageConfig ?? {}) as Record<string, unknown>;
+      setPageSettings(buildDefaultSettings(cfg));
+    }
+  }, [tenant, pageSettings]);
 
   function handleOpenPageSettings() {
     const cfg = (tenant?.pageConfig ?? {}) as Record<string, unknown>;
@@ -197,18 +243,61 @@ export default function Manage() {
 
   async function handleHeroPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !pageSettings) return;
+    if (!file || !tenant) return;
     setHeroUploading(true);
     setPageSettingsError(null);
+    setHeroError(null);
+    setHeroSaved(false);
     try {
       const objectPath = await uploadFile(file, file.type);
+      // Update local preview
       setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: objectPath } : prev);
+      // Auto-save: build from PERSISTED tenant.pageConfig so unsaved form edits are not written
+      const persistedCfg = (tenant.pageConfig ?? {}) as Record<string, unknown>;
+      const persistedSettings = buildDefaultSettings(persistedCfg);
+      const pageConfig = buildPageConfig({ ...persistedSettings, heroPhotoPath: objectPath });
+      updateTenant.mutate(
+        { slug, data: { pageConfig } },
+        {
+          onSuccess: () => {
+            setHeroSaved(true);
+            queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(slug) });
+            setTimeout(() => setHeroSaved(false), 3000);
+          },
+          onError: () => {
+            setHeroError("Photo uploaded but failed to save. Try saving page settings.");
+          },
+        },
+      );
     } catch {
-      setPageSettingsError("Failed to upload hero photo.");
+      setHeroError("Failed to upload photo.");
     } finally {
       setHeroUploading(false);
       if (heroFileInputRef.current) heroFileInputRef.current.value = "";
     }
+  }
+
+  function handleRemoveHeroPhoto() {
+    if (!tenant) return;
+    setHeroSaved(false);
+    setHeroError(null);
+    // Update local preview
+    setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: null } : prev);
+    // Auto-save: build from PERSISTED tenant.pageConfig so unsaved form edits are not written
+    const persistedCfg = (tenant.pageConfig ?? {}) as Record<string, unknown>;
+    const persistedSettings = buildDefaultSettings(persistedCfg);
+    const pageConfig = buildPageConfig({ ...persistedSettings, heroPhotoPath: null });
+    updateTenant.mutate(
+      { slug, data: { pageConfig } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(slug) });
+        },
+        onError: () => {
+          setHeroError("Failed to remove photo. Try again.");
+        },
+      },
+    );
   }
 
   function handleSavePageSettings() {
@@ -216,42 +305,8 @@ export default function Manage() {
     setPageSettingsError(null);
     setPageSettingsSaved(false);
 
-    // Assemble PageConfig object matching PageConfigSchema
-    const assembled = {
-      version: 1 as const,
-      theme: {
-        palette: pageSettings.palette,
-        accent: pageSettings.accent,
-        font: pageSettings.font,
-      },
-      hero: {
-        heroPhotoPath: pageSettings.heroPhotoPath,
-        showDates: pageSettings.showDates,
-      },
-      story: {
-        enabled: pageSettings.storyEnabled,
-        blocks: pageSettings.storyBlocks.map((b) => ({ heading: b.heading, body: b.body })),
-      },
-      sections: {
-        order: pageSettings.sectionsOrder,
-        story: pageSettings.sectionStory,
-        wall: pageSettings.sectionWall,
-        reach: pageSettings.sectionReach,
-      },
-      reachSummary: pageSettings.reachSummary.map((r) => {
-        if (r.mode === "derived") {
-          return { label: r.label, derived: r.derived };
-        }
-        return { label: r.label, value: r.value };
-      }),
-      cta: {
-        primaryLabel: pageSettings.primaryLabel,
-        wallLabel: pageSettings.wallLabel,
-      },
-    };
-
     updateTenant.mutate(
-      { slug, data: { pageConfig: assembled as TenantUpdatePageConfig } },
+      { slug, data: { pageConfig: buildPageConfig(pageSettings) } },
       {
         onSuccess: () => {
           setPageSettingsSaved(true);
@@ -475,6 +530,8 @@ export default function Manage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-10">
+
+      {/* Header */}
       <div className="space-y-2">
         <div className="text-xs tracking-widest uppercase text-muted-foreground">Manage</div>
         <h1 className="text-3xl font-serif">{tenant?.friendName ?? slug}</h1>
@@ -488,6 +545,23 @@ export default function Manage() {
         </div>
       </div>
 
+      {/* Multi-page switcher (only when user owns more than 1 page) */}
+      {!mineLoading && mine && mine.length > 1 && (
+        <div className="flex items-center gap-2 text-sm">
+          <label htmlFor="page-switcher" className="text-muted-foreground whitespace-nowrap">Switch page:</label>
+          <select
+            id="page-switcher"
+            className="border border-border/60 rounded-md px-2 py-1 text-sm bg-background"
+            value={slug}
+            onChange={(e) => setLocation(`/${e.target.value}/manage`)}
+          >
+            {mine.map((t) => (
+              <option key={t.slug} value={t.slug}>{t.friendName ?? t.slug}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Edit tenant meta */}
       <section className="bg-card border border-border/40 rounded-xl overflow-hidden">
         <button
@@ -500,6 +574,61 @@ export default function Manage() {
         </button>
         {showEditMeta && (
           <form onSubmit={handleSaveMeta} className="px-5 pb-5 space-y-4 border-t border-border/30 pt-4">
+            {/* Friend photo */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-2">Photo</label>
+              {/* Hidden file input — buttons below trigger it */}
+              <input
+                ref={heroFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleHeroPhotoChange}
+                disabled={heroUploading}
+              />
+              <div className="flex items-center gap-5">
+                {pageSettings?.heroPhotoPath ? (
+                  <img
+                    src={`/api${pageSettings.heroPhotoPath}`}
+                    alt="Friend photo"
+                    className="h-28 w-28 object-cover rounded-full border border-border/40 shrink-0"
+                  />
+                ) : (
+                  <div className="h-28 w-28 rounded-full bg-muted border border-border/40 flex items-center justify-center shrink-0">
+                    <Camera size={32} className="text-muted-foreground/50" />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {heroUploading ? (
+                    <p className="text-sm text-muted-foreground animate-pulse">Uploading…</p>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-full font-serif"
+                      onClick={() => heroFileInputRef.current?.click()}
+                      disabled={heroUploading}
+                    >
+                      {pageSettings?.heroPhotoPath ? "Change photo" : "Upload photo"}
+                    </Button>
+                  )}
+                  {pageSettings?.heroPhotoPath && !heroUploading && (
+                    <div>
+                      <button
+                        type="button"
+                        className="text-xs text-destructive hover:underline"
+                        onClick={handleRemoveHeroPhoto}
+                        disabled={updateTenant.isPending}
+                      >
+                        Remove photo
+                      </button>
+                    </div>
+                  )}
+                  {heroSaved && <p className="text-xs text-green-600">Photo saved.</p>}
+                  {heroError && <p className="text-xs text-destructive">{heroError}</p>}
+                </div>
+              </div>
+            </div>
             <div>
               <label className="block text-xs text-muted-foreground mb-1">Name</label>
               <input
@@ -546,61 +675,6 @@ export default function Manage() {
               className="rounded-full font-serif"
             >
               {updateTenant.isPending ? "Saving…" : "Save changes"}
-            </Button>
-          </form>
-        )}
-      </section>
-
-      {/* Add a link */}
-      <section className="bg-card border border-border/40 rounded-xl overflow-hidden">
-        <button
-          type="button"
-          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition"
-          onClick={() => setShowAddLink((v) => !v)}
-        >
-          <span className="font-serif text-lg flex items-center gap-2">
-            <Plus size={16} /> Add a link
-          </span>
-          {showAddLink ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-        {showAddLink && (
-          <form onSubmit={handleAddLink} className="px-5 pb-5 space-y-3 border-t border-border/30 pt-4">
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Title / Author name</label>
-              <input
-                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-                value={linkTitle}
-                onChange={e => setLinkTitle(e.target.value)}
-                placeholder="e.g. Tribute article in El País"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">URL</label>
-              <input
-                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-                value={linkUrl}
-                onChange={e => setLinkUrl(e.target.value)}
-                placeholder="https://..."
-                type="url"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Note (opt.)</label>
-              <input
-                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-                value={linkNote}
-                onChange={e => setLinkNote(e.target.value)}
-                placeholder="A brief description"
-              />
-            </div>
-            {linkError && <p className="text-xs text-destructive">{linkError}</p>}
-            <Button
-              type="submit"
-              disabled={createMessage.isPending}
-              className="rounded-full font-serif"
-            >
-              {createMessage.isPending ? "Adding…" : "Add link"}
             </Button>
           </form>
         )}
@@ -678,36 +752,6 @@ export default function Manage() {
                   />
                   <span className="text-sm">Show birth / death years</span>
                 </label>
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Hero photo</label>
-                {pageSettings.heroPhotoPath && (
-                  <div className="mb-2 flex items-center gap-3">
-                    <img
-                      src={`/api${pageSettings.heroPhotoPath}`}
-                      alt="Hero preview"
-                      className="h-16 w-16 object-cover rounded-md border border-border/40"
-                    />
-                    <button
-                      type="button"
-                      className="text-xs text-destructive hover:underline"
-                      onClick={() => setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: null } : prev)}
-                    >
-                      Remove photo
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={heroFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="text-sm text-muted-foreground file:mr-2 file:rounded-full file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-medium"
-                    onChange={handleHeroPhotoChange}
-                    disabled={heroUploading}
-                  />
-                  {heroUploading && <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>}
-                </div>
               </div>
             </div>
 
@@ -938,8 +982,63 @@ export default function Manage() {
         )}
       </section>
 
+      {/* Add a link */}
+      <section className="bg-card border border-border/40 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition"
+          onClick={() => setShowAddLink((v) => !v)}
+        >
+          <span className="font-serif text-lg flex items-center gap-2">
+            <Plus size={16} /> Add a link
+          </span>
+          {showAddLink ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {showAddLink && (
+          <form onSubmit={handleAddLink} className="px-5 pb-5 space-y-3 border-t border-border/30 pt-4">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Title / Author name</label>
+              <input
+                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                value={linkTitle}
+                onChange={e => setLinkTitle(e.target.value)}
+                placeholder="e.g. Tribute article in El País"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">URL</label>
+              <input
+                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                value={linkUrl}
+                onChange={e => setLinkUrl(e.target.value)}
+                placeholder="https://..."
+                type="url"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Note (opt.)</label>
+              <input
+                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                value={linkNote}
+                onChange={e => setLinkNote(e.target.value)}
+                placeholder="A brief description"
+              />
+            </div>
+            {linkError && <p className="text-xs text-destructive">{linkError}</p>}
+            <Button
+              type="submit"
+              disabled={createMessage.isPending}
+              className="rounded-full font-serif"
+            >
+              {createMessage.isPending ? "Adding…" : "Add link"}
+            </Button>
+          </form>
+        )}
+      </section>
+
       {/* Tributes list */}
-      <section className="space-y-4">
+      <section className="bg-card border border-border/40 rounded-xl overflow-hidden p-5 space-y-4">
         <h2 className="font-serif text-xl">Tributes</h2>
         {messagesLoading && (
           <p className="font-serif italic text-muted-foreground animate-pulse">Loading tributes…</p>
@@ -1010,7 +1109,7 @@ export default function Manage() {
       </section>
 
       {/* Blocked accounts */}
-      <section className="space-y-4">
+      <section className="bg-card border border-border/40 rounded-xl overflow-hidden p-5 space-y-4">
         <h2 className="font-serif text-xl flex items-center gap-2">
           <ShieldCheck size={18} /> Blocked accounts
         </h2>

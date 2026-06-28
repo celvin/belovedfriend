@@ -12,7 +12,7 @@ import {
 import { db } from "@workspace/db";
 import { messagesTable, usersTable } from "@workspace/db/schema";
 import { getSession, requireAuth } from "../lib/session";
-import { resolveTenant, isBlocked, requireOwner, getTenantFromReq } from "../lib/tenancy";
+import { resolveTenant, isBlocked, isOwnerOrAdmin } from "../lib/tenancy";
 import { mediaStore, keyFromObjectPath } from "../lib/blobs";
 
 async function tryDeleteObject(objectPath: string | null | undefined, log: { warn: (o: object, m: string) => void }) {
@@ -253,7 +253,7 @@ router.post("/t/:slug/messages", requireAuth, async (req: Request, res: Response
 });
 
 // PATCH /t/:slug/messages/:id
-router.patch("/t/:slug/messages/:id", requireOwner, async (req: Request, res: Response) => {
+router.patch("/t/:slug/messages/:id", requireAuth, async (req: Request, res: Response) => {
   const paramsParsed = UpdateMessageParams.safeParse(req.params);
   if (!paramsParsed.success) {
     res.status(400).json({ error: "Invalid params" });
@@ -264,9 +264,25 @@ router.patch("/t/:slug/messages/:id", requireOwner, async (req: Request, res: Re
     res.status(400).json({ error: "Invalid update" });
     return;
   }
-  const tenant = getTenantFromReq(req);
+  const tenant = await resolveTenant(paramsParsed.data.slug);
   if (!tenant) {
     res.status(404).json({ error: "Tenant not found" });
+    return;
+  }
+  const sess = getSession(req)!;
+  const rows = await db
+    .select()
+    .from(messagesTable)
+    .where(and(eq(messagesTable.id, paramsParsed.data.id), eq(messagesTable.tenantId, tenant.id)))
+    .limit(1);
+  const message = rows[0];
+  if (!message) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const authorized = message.userId === sess.uid || await isOwnerOrAdmin(tenant, sess.uid);
+  if (!authorized) {
+    res.status(403).json({ error: "You cannot edit this tribute" });
     return;
   }
   const patch: Partial<typeof messagesTable.$inferInsert> = {};
@@ -275,6 +291,8 @@ router.patch("/t/:slug/messages/:id", requireOwner, async (req: Request, res: Re
   if (d.authorName !== undefined) patch.authorName = d.authorName;
   if (d.relationship !== undefined) patch.relationship = d.relationship;
   if (d.location !== undefined) patch.location = d.location;
+  if (d.card !== undefined) patch.card = d.card;
+  if (d.url !== undefined) patch.url = d.url;
   try {
     const updated = await db
       .update(messagesTable)
@@ -294,15 +312,31 @@ router.patch("/t/:slug/messages/:id", requireOwner, async (req: Request, res: Re
 });
 
 // DELETE /t/:slug/messages/:id
-router.delete("/t/:slug/messages/:id", requireOwner, async (req: Request, res: Response) => {
+router.delete("/t/:slug/messages/:id", requireAuth, async (req: Request, res: Response) => {
   const parsed = DeleteMessageParams.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid params" });
     return;
   }
-  const tenant = getTenantFromReq(req);
+  const tenant = await resolveTenant(parsed.data.slug);
   if (!tenant) {
     res.status(404).json({ error: "Tenant not found" });
+    return;
+  }
+  const sess = getSession(req)!;
+  const rows = await db
+    .select()
+    .from(messagesTable)
+    .where(and(eq(messagesTable.id, parsed.data.id), eq(messagesTable.tenantId, tenant.id)))
+    .limit(1);
+  const message = rows[0];
+  if (!message) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const authorized = message.userId === sess.uid || await isOwnerOrAdmin(tenant, sess.uid);
+  if (!authorized) {
+    res.status(403).json({ error: "You cannot delete this tribute" });
     return;
   }
   try {
