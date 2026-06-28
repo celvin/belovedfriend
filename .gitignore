@@ -50,3 +50,6 @@ Thumbs.db
 secret.txt
 # Local Netlify folder
 .netlify
+
+# superpowers SDD scratch (ledger, briefs, reports)
+.superpowers/
