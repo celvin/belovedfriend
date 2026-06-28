@@ -1,14 +1,18 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
   CreateMessageBody,
+  ListMessagesParams,
   ListMessagesQueryParams,
   GetMessageParams,
+  UpdateMessageParams,
   UpdateMessageBody,
+  DeleteMessageParams,
 } from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import { messagesTable, usersTable } from "@workspace/db/schema";
-import { getSession, requireAdmin, requireAuth } from "../lib/session";
+import { getSession, requireAuth } from "../lib/session";
+import { resolveTenant, isBlocked, requireOwner, getTenantFromReq } from "../lib/tenancy";
 import { ObjectStorageService } from "../lib/objectStorage";
 
 const objectStorageService = new ObjectStorageService();
@@ -28,7 +32,7 @@ const router: IRouter = Router();
 function serialize(row: typeof messagesTable.$inferSelect) {
   return {
     id: row.id,
-    type: row.type as "card" | "video",
+    type: row.type as "card" | "video" | "link",
     body: row.body,
     authorName: row.authorName,
     relationship: row.relationship,
@@ -36,11 +40,24 @@ function serialize(row: typeof messagesTable.$inferSelect) {
     videoPath: row.videoPath,
     photoPath: row.photoPath,
     card: row.card,
+    url: row.url,
+    nodeId: row.nodeId,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
-router.get("/messages", async (req: Request, res: Response) => {
+// GET /t/:slug/messages
+router.get("/t/:slug/messages", async (req: Request, res: Response) => {
+  const slugParsed = ListMessagesParams.safeParse(req.params);
+  if (!slugParsed.success) {
+    res.status(400).json({ error: "Invalid slug" });
+    return;
+  }
+  const tenant = await resolveTenant(slugParsed.data.slug);
+  if (!tenant) {
+    res.status(404).json({ error: "Tenant not found" });
+    return;
+  }
   const parsed = ListMessagesQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid query" });
@@ -48,12 +65,16 @@ router.get("/messages", async (req: Request, res: Response) => {
   }
   const { type, limit } = parsed.data;
   try {
-    const baseQuery = db.select().from(messagesTable);
-    const filtered =
+    const baseWhere =
       type && type !== "all"
-        ? baseQuery.where(eq(messagesTable.type, type))
-        : baseQuery;
-    const rows = await filtered.orderBy(desc(messagesTable.createdAt)).limit(limit ?? 200);
+        ? and(eq(messagesTable.tenantId, tenant.id), eq(messagesTable.type, type))
+        : eq(messagesTable.tenantId, tenant.id);
+    const rows = await db
+      .select()
+      .from(messagesTable)
+      .where(baseWhere)
+      .orderBy(desc(messagesTable.createdAt))
+      .limit(limit ?? 200);
     res.json(rows.map(serialize));
   } catch (err) {
     req.log.error({ err }, "listMessages error");
@@ -61,8 +82,20 @@ router.get("/messages", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/messages/stats", async (req: Request, res: Response) => {
+// GET /t/:slug/messages/stats
+router.get("/t/:slug/messages/stats", async (req: Request, res: Response) => {
+  const slugParsed = ListMessagesParams.safeParse(req.params);
+  if (!slugParsed.success) {
+    res.status(400).json({ error: "Invalid slug" });
+    return;
+  }
+  const tenant = await resolveTenant(slugParsed.data.slug);
+  if (!tenant) {
+    res.status(404).json({ error: "Tenant not found" });
+    return;
+  }
   try {
+    const tenantFilter = eq(messagesTable.tenantId, tenant.id);
     const rows = await db
       .select({
         total: sql<number>`count(*)::int`,
@@ -70,10 +103,12 @@ router.get("/messages/stats", async (req: Request, res: Response) => {
         videos: sql<number>`sum(case when ${messagesTable.type} = 'video' then 1 else 0 end)::int`,
         contributors: sql<number>`count(distinct ${messagesTable.authorName})::int`,
       })
-      .from(messagesTable);
+      .from(messagesTable)
+      .where(tenantFilter);
     const locations = await db
       .selectDistinct({ location: messagesTable.location })
-      .from(messagesTable);
+      .from(messagesTable)
+      .where(tenantFilter);
     const countries = new Set(
       locations
         .map((l: { location: string | null }) =>
@@ -84,6 +119,7 @@ router.get("/messages/stats", async (req: Request, res: Response) => {
     const recent = await db
       .select({ name: messagesTable.authorName })
       .from(messagesTable)
+      .where(tenantFilter)
       .orderBy(desc(messagesTable.createdAt))
       .limit(8);
     const stats = rows[0] ?? { total: 0, cards: 0, videos: 0, contributors: 0 };
@@ -101,17 +137,23 @@ router.get("/messages/stats", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/messages/:id", async (req: Request, res: Response) => {
+// GET /t/:slug/messages/:id
+router.get("/t/:slug/messages/:id", async (req: Request, res: Response) => {
   const parsed = GetMessageParams.safeParse(req.params);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid id" });
+    res.status(400).json({ error: "Invalid params" });
+    return;
+  }
+  const tenant = await resolveTenant(parsed.data.slug);
+  if (!tenant) {
+    res.status(404).json({ error: "Tenant not found" });
     return;
   }
   try {
     const rows = await db
       .select()
       .from(messagesTable)
-      .where(eq(messagesTable.id, parsed.data.id))
+      .where(and(eq(messagesTable.id, parsed.data.id), eq(messagesTable.tenantId, tenant.id)))
       .limit(1);
     const row = rows[0];
     if (!row) {
@@ -125,19 +167,53 @@ router.get("/messages/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/messages", requireAuth, async (req: Request, res: Response) => {
+// POST /t/:slug/messages
+router.post("/t/:slug/messages", requireAuth, async (req: Request, res: Response) => {
+  const slugParsed = ListMessagesParams.safeParse(req.params);
+  if (!slugParsed.success) {
+    res.status(400).json({ error: "Invalid slug" });
+    return;
+  }
+  const tenant = await resolveTenant(slugParsed.data.slug);
+  if (!tenant) {
+    res.status(404).json({ error: "Tenant not found" });
+    return;
+  }
+  const sess = getSession(req)!;
+  if (await isBlocked(tenant.id, sess.uid)) {
+    res.status(403).json({ error: "You are blocked from contributing to this page" });
+    return;
+  }
   const parsed = CreateMessageBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid message" });
     return;
   }
   const data = parsed.data;
+
+  // Link type requires owner or super-admin
+  if (data.type === "link") {
+    const isOwner = tenant.ownerUserId === sess.uid;
+    if (!isOwner) {
+      // Check super-admin
+      const userRows = await db
+        .select({ role: usersTable.role })
+        .from(usersTable)
+        .where(eq(usersTable.id, sess.uid))
+        .limit(1);
+      const isSuperAdmin = userRows[0]?.role === "admin";
+      if (!isSuperAdmin) {
+        res.status(403).json({ error: "Only the page owner can add link tributes" });
+        return;
+      }
+    }
+  }
+
   if (data.type === "video" && !data.videoPath) {
     res.status(400).json({ error: "A recorded video is required for video tributes." });
     return;
   }
   try {
-    const sess = getSession(req)!;
     const userRows = await db
       .select()
       .from(usersTable)
@@ -150,6 +226,7 @@ router.post("/messages", requireAuth, async (req: Request, res: Response) => {
     const inserted = await db
       .insert(messagesTable)
       .values({
+        tenantId: tenant.id,
         userId: sess.uid,
         type: data.type,
         body: data.body ?? null,
@@ -159,6 +236,8 @@ router.post("/messages", requireAuth, async (req: Request, res: Response) => {
         videoPath: data.videoPath ?? null,
         photoPath: data.photoPath ?? null,
         card: data.card ?? null,
+        url: data.url ?? null,
+        nodeId: data.nodeId ?? null,
       })
       .returning();
 
@@ -176,15 +255,21 @@ router.post("/messages", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/messages/:id", requireAdmin, async (req: Request, res: Response) => {
-  const paramsParsed = GetMessageParams.safeParse(req.params);
+// PATCH /t/:slug/messages/:id
+router.patch("/t/:slug/messages/:id", requireOwner, async (req: Request, res: Response) => {
+  const paramsParsed = UpdateMessageParams.safeParse(req.params);
   if (!paramsParsed.success) {
-    res.status(400).json({ error: "Invalid id" });
+    res.status(400).json({ error: "Invalid params" });
     return;
   }
   const bodyParsed = UpdateMessageBody.safeParse(req.body);
   if (!bodyParsed.success) {
     res.status(400).json({ error: "Invalid update" });
+    return;
+  }
+  const tenant = getTenantFromReq(req);
+  if (!tenant) {
+    res.status(404).json({ error: "Tenant not found" });
     return;
   }
   const patch: Partial<typeof messagesTable.$inferInsert> = {};
@@ -197,7 +282,7 @@ router.patch("/messages/:id", requireAdmin, async (req: Request, res: Response) 
     const updated = await db
       .update(messagesTable)
       .set(patch)
-      .where(eq(messagesTable.id, paramsParsed.data.id))
+      .where(and(eq(messagesTable.id, paramsParsed.data.id), eq(messagesTable.tenantId, tenant.id)))
       .returning();
     const row = updated[0];
     if (!row) {
@@ -211,16 +296,22 @@ router.patch("/messages/:id", requireAdmin, async (req: Request, res: Response) 
   }
 });
 
-router.delete("/messages/:id", requireAdmin, async (req: Request, res: Response) => {
-  const parsed = GetMessageParams.safeParse(req.params);
+// DELETE /t/:slug/messages/:id
+router.delete("/t/:slug/messages/:id", requireOwner, async (req: Request, res: Response) => {
+  const parsed = DeleteMessageParams.safeParse(req.params);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid id" });
+    res.status(400).json({ error: "Invalid params" });
+    return;
+  }
+  const tenant = getTenantFromReq(req);
+  if (!tenant) {
+    res.status(404).json({ error: "Tenant not found" });
     return;
   }
   try {
     const deleted = await db
       .delete(messagesTable)
-      .where(eq(messagesTable.id, parsed.data.id))
+      .where(and(eq(messagesTable.id, parsed.data.id), eq(messagesTable.tenantId, tenant.id)))
       .returning();
     const row = deleted[0];
     if (!row) {
