@@ -21,7 +21,9 @@ export const HealthCheckResponse = zod.object({
  */
 export const RequestMagicLinkBody = zod.object({
   "email": zod.string().email(),
-  "name": zod.string().optional()
+  "name": zod.string().optional(),
+  "slug": zod.string().optional().describe('Tenant slug — used to compute the post-login redirect path'),
+  "intent": zod.enum(['compose', 'map', 'create']).optional().describe('Desired post-login action')
 })
 
 export const RequestMagicLinkResponse = zod.object({
@@ -44,7 +46,8 @@ export const VerifyMagicLinkResponse = zod.object({
   "name": zod.string().nullish(),
   "role": zod.enum(['user', 'admin']),
   "createdAt": zod.coerce.date().optional()
-})
+}),
+  "redirectTo": zod.string().describe('Internal path to redirect to after sign-in')
 })
 
 
@@ -73,20 +76,24 @@ export const LogoutResponse = zod.object({
 
 
 /**
- * @summary List all public tributes (cards and videos)
+ * @summary List all public tributes (cards and videos) for a tenant
  */
+export const ListMessagesParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
 export const listMessagesQueryLimitMax = 200;
 
 
 
 export const ListMessagesQueryParams = zod.object({
-  "type": zod.enum(['all', 'card', 'video']).optional(),
+  "type": zod.enum(['all', 'card', 'video', 'link']).optional(),
   "limit": zod.coerce.number().min(1).max(listMessagesQueryLimitMax).optional()
 })
 
 export const ListMessagesResponseItem = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['card', 'video']),
+  "type": zod.enum(['card', 'video', 'link']),
   "body": zod.string().nullish(),
   "authorName": zod.string(),
   "relationship": zod.string().nullish(),
@@ -105,19 +112,26 @@ export const ListMessagesResponseItem = zod.object({
   "layout": zod.enum(['center', 'top', 'bottom', 'side']).optional(),
   "decoration": zod.string().optional().describe('Optional decorative motif id')
 }).describe('Customization payload for a card tribute'),zod.null()]).optional(),
+  "url": zod.string().nullish().describe('URL for link-type tributes'),
+  "nodeId": zod.number().nullish().describe('Attached reach graph node id'),
+  "userId": zod.number().nullish().describe('Author\'s user id (owner-scoped)'),
   "createdAt": zod.coerce.date()
 })
 export const ListMessagesResponse = zod.array(ListMessagesResponseItem)
 
 
 /**
- * @summary Post a new tribute (card or video)
+ * @summary Post a new tribute (card, video, or link) for a tenant
  */
+export const CreateMessageParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
 export const CreateMessageBody = zod.object({
-  "type": zod.enum(['card', 'video']),
+  "type": zod.enum(['card', 'video', 'link']),
   "body": zod.string().optional().describe('Plain text body (used for card messages and video captions)'),
   "authorName": zod.string().optional(),
-  "relationship": zod.string().optional().describe('How the author knew Luis (colleague, friend, family, client, etc.)'),
+  "relationship": zod.string().optional().describe('How the author knew the person being memorialized (colleague, friend, family, client, etc.)'),
   "location": zod.string().optional(),
   "videoPath": zod.string().nullish().describe('Storage object path for an uploaded recorded video (required when type = video)'),
   "photoPath": zod.string().nullish().describe('Optional cover photo path'),
@@ -132,17 +146,37 @@ export const CreateMessageBody = zod.object({
   "photoPath": zod.string().nullish().describe('Optional storage object path for an uploaded photo'),
   "layout": zod.enum(['center', 'top', 'bottom', 'side']).optional(),
   "decoration": zod.string().optional().describe('Optional decorative motif id')
-}).describe('Customization payload for a card tribute'),zod.null()]).optional()
+}).describe('Customization payload for a card tribute'),zod.null()]).optional(),
+  "url": zod.string().optional().describe('URL for link-type tributes'),
+  "nodeId": zod.number().optional().describe('Optional reach graph node to attach this tribute to')
+})
+
+
+/**
+ * @summary Aggregate counts for a tenant's public wall
+ */
+export const GetMessageStatsParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetMessageStatsResponse = zod.object({
+  "total": zod.number(),
+  "cards": zod.number(),
+  "videos": zod.number(),
+  "contributors": zod.number(),
+  "countries": zod.number(),
+  "recentAuthors": zod.array(zod.string()).optional()
 })
 
 
 export const GetMessageParams = zod.object({
+  "slug": zod.coerce.string(),
   "id": zod.coerce.number()
 })
 
 export const GetMessageResponse = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['card', 'video']),
+  "type": zod.enum(['card', 'video', 'link']),
   "body": zod.string().nullish(),
   "authorName": zod.string(),
   "relationship": zod.string().nullish(),
@@ -161,14 +195,18 @@ export const GetMessageResponse = zod.object({
   "layout": zod.enum(['center', 'top', 'bottom', 'side']).optional(),
   "decoration": zod.string().optional().describe('Optional decorative motif id')
 }).describe('Customization payload for a card tribute'),zod.null()]).optional(),
+  "url": zod.string().nullish().describe('URL for link-type tributes'),
+  "nodeId": zod.number().nullish().describe('Attached reach graph node id'),
+  "userId": zod.number().nullish().describe('Author\'s user id (owner-scoped)'),
   "createdAt": zod.coerce.date()
 })
 
 
 /**
- * @summary Admin-only — edit any tribute
+ * @summary Owner/admin — edit any tribute
  */
 export const UpdateMessageParams = zod.object({
+  "slug": zod.coerce.string(),
   "id": zod.coerce.number()
 })
 
@@ -181,7 +219,7 @@ export const UpdateMessageBody = zod.object({
 
 export const UpdateMessageResponse = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['card', 'video']),
+  "type": zod.enum(['card', 'video', 'link']),
   "body": zod.string().nullish(),
   "authorName": zod.string(),
   "relationship": zod.string().nullish(),
@@ -200,14 +238,18 @@ export const UpdateMessageResponse = zod.object({
   "layout": zod.enum(['center', 'top', 'bottom', 'side']).optional(),
   "decoration": zod.string().optional().describe('Optional decorative motif id')
 }).describe('Customization payload for a card tribute'),zod.null()]).optional(),
+  "url": zod.string().nullish().describe('URL for link-type tributes'),
+  "nodeId": zod.number().nullish().describe('Attached reach graph node id'),
+  "userId": zod.number().nullish().describe('Author\'s user id (owner-scoped)'),
   "createdAt": zod.coerce.date()
 })
 
 
 /**
- * @summary Admin-only — delete any tribute
+ * @summary Owner/admin — delete any tribute
  */
 export const DeleteMessageParams = zod.object({
+  "slug": zod.coerce.string(),
   "id": zod.coerce.number()
 })
 
@@ -218,59 +260,261 @@ export const DeleteMessageResponse = zod.object({
 
 
 /**
- * @summary Aggregate counts for the public wall
+ * @summary Tenant reach graph — nodes, edges, and summary
  */
-export const GetMessageStatsResponse = zod.object({
-  "total": zod.number(),
-  "cards": zod.number(),
-  "videos": zod.number(),
-  "contributors": zod.number(),
-  "countries": zod.number(),
-  "recentAuthors": zod.array(zod.string()).optional()
+export const GetReachParams = zod.object({
+  "slug": zod.coerce.string()
 })
 
-
-/**
- * @summary Curated list of places, projects, and communities touched by Luis's work
- */
-export const GetReachNetworkResponse = zod.object({
+export const GetReachResponse = zod.object({
   "nodes": zod.array(zod.object({
-  "id": zod.string(),
+  "id": zod.number(),
   "label": zod.string(),
-  "category": zod.enum(['project', 'city', 'agency', 'community', 'team', 'wonder']),
-  "weight": zod.number().optional(),
-  "lat": zod.number().nullish(),
-  "lng": zod.number().nullish(),
-  "note": zod.string().nullish()
+  "category": zod.string(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional(),
+  "note": zod.string().optional(),
+  "isAnchor": zod.boolean(),
+  "createdAt": zod.coerce.date()
 })),
   "edges": zod.array(zod.object({
-  "source": zod.string(),
-  "target": zod.string()
+  "id": zod.number(),
+  "sourceNodeId": zod.number(),
+  "targetNodeId": zod.number()
 })),
-  "summary": zod.object({
-  "projects": zod.number(),
-  "agencies": zod.number(),
-  "cities": zod.number(),
-  "livesTouched": zod.number(),
-  "yearsOfService": zod.number().optional(),
-  "teamSize": zod.number().optional(),
-  "wonders": zod.number().optional()
-})
+  "summary": zod.record(zod.string(), zod.unknown())
 })
 
 
 /**
- * @summary Request a presigned upload URL
+ * @summary Add a node to the tenant reach graph (auth required)
  */
-export const RequestUploadUrlBody = zod.object({
-  "name": zod.string(),
-  "size": zod.number().optional(),
-  "contentType": zod.string()
+export const CreateReachNodeParams = zod.object({
+  "slug": zod.coerce.string()
 })
 
-export const RequestUploadUrlResponse = zod.object({
-  "uploadURL": zod.string(),
-  "objectPath": zod.string()
+export const CreateReachNodeBody = zod.object({
+  "label": zod.string(),
+  "category": zod.string(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional(),
+  "note": zod.string().optional()
+})
+
+
+/**
+ * @summary Add an edge to the tenant reach graph (auth required)
+ */
+export const CreateReachEdgeParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const CreateReachEdgeBody = zod.object({
+  "sourceNodeId": zod.number(),
+  "targetNodeId": zod.number()
+})
+
+
+/**
+ * @summary Delete a reach node (owner/admin only)
+ */
+export const DeleteReachNodeParams = zod.object({
+  "slug": zod.coerce.string(),
+  "id": zod.coerce.number()
+})
+
+export const DeleteReachNodeResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Delete a reach edge (owner/admin only)
+ */
+export const DeleteReachEdgeParams = zod.object({
+  "slug": zod.coerce.string(),
+  "id": zod.coerce.number()
+})
+
+export const DeleteReachEdgeResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary List blocked users for a tenant (owner only)
+ */
+export const ListBlocksParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const ListBlocksResponseItem = zod.object({
+  "userId": zod.number(),
+  "email": zod.string().optional(),
+  "name": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListBlocksResponse = zod.array(ListBlocksResponseItem)
+
+
+/**
+ * @summary Block a user from a tenant (owner only)
+ */
+export const CreateBlockParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const CreateBlockBody = zod.object({
+  "userId": zod.number()
+})
+
+export const CreateBlockResponse = zod.object({
+  "userId": zod.number(),
+  "email": zod.string().optional(),
+  "name": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Unblock a user from a tenant (owner only)
+ */
+export const DeleteBlockParams = zod.object({
+  "slug": zod.coerce.string(),
+  "userId": zod.coerce.number()
+})
+
+export const DeleteBlockResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Super-admin — suspend or reactivate a tenant
+ */
+export const AdminUpdateTenantParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const AdminUpdateTenantBody = zod.object({
+  "status": zod.enum(['active', 'suspended'])
+})
+
+export const AdminUpdateTenantResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "status": zod.enum(['active', 'suspended']),
+  "pageConfig": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Public directory of active tenants
+ */
+export const ListTenantsResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "tagline": zod.string().optional()
+})
+export const ListTenantsResponse = zod.array(ListTenantsResponseItem)
+
+
+/**
+ * @summary Claim a new tenant (memorial page)
+ */
+export const CreateTenantBody = zod.object({
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional()
+})
+
+
+/**
+ * @summary List tenants owned by the authenticated caller
+ */
+export const ListMyTenantsResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "status": zod.enum(['active', 'suspended']),
+  "pageConfig": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})
+export const ListMyTenantsResponse = zod.array(ListMyTenantsResponseItem)
+
+
+/**
+ * @summary Get a tenant by slug
+ */
+export const GetTenantParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetTenantResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "status": zod.enum(['active', 'suspended']),
+  "pageConfig": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a tenant (owner or admin)
+ */
+export const UpdateTenantParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const UpdateTenantBody = zod.object({
+  "friendName": zod.string().optional(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "pageConfig": zod.record(zod.string(), zod.unknown()).optional()
+}).describe('All fields optional')
+
+export const UpdateTenantResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "friendName": zod.string(),
+  "birthYear": zod.number().optional(),
+  "deathYear": zod.number().optional(),
+  "tagline": zod.string().optional(),
+  "status": zod.enum(['active', 'suspended']),
+  "pageConfig": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Check if a slug is available
+ */
+export const CheckSlugAvailabilityParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const CheckSlugAvailabilityResponse = zod.object({
+  "slug": zod.string(),
+  "available": zod.boolean()
 })
 
 

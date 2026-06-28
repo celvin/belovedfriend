@@ -11,8 +11,10 @@ tags:
   - name: health
   - name: auth
   - name: messages
-  - name: storage
   - name: reach
+  - name: tenants
+  - name: blocks
+  - name: admin
 paths:
   /healthz:
     get:
@@ -84,18 +86,22 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SimpleOk" }
 
-  /messages:
+  /t/{slug}/messages:
     get:
       operationId: listMessages
       tags: [messages]
-      summary: List all public tributes (cards and videos)
+      summary: List all public tributes (cards and videos) for a tenant
       parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
         - in: query
           name: type
           required: false
           schema:
             type: string
-            enum: [all, card, video]
+            enum: [all, card, video, link]
         - in: query
           name: limit
           required: false
@@ -111,7 +117,12 @@ paths:
     post:
       operationId: createMessage
       tags: [messages]
-      summary: Post a new tribute (card or video)
+      summary: Post a new tribute (card, video, or link) for a tenant
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -124,11 +135,32 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Message" }
 
-  /messages/{id}:
+  /t/{slug}/messages/stats:
+    get:
+      operationId: getMessageStats
+      tags: [messages]
+      summary: Aggregate counts for a tenant's public wall
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageStats" }
+
+  /t/{slug}/messages/{id}:
     get:
       operationId: getMessage
       tags: [messages]
       parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
         - in: path
           name: id
           required: true
@@ -142,8 +174,12 @@ paths:
     patch:
       operationId: updateMessage
       tags: [messages]
-      summary: Admin-only — edit any tribute
+      summary: Owner/admin — edit any tribute
       parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
         - in: path
           name: id
           required: true
@@ -162,8 +198,12 @@ paths:
     delete:
       operationId: deleteMessage
       tags: [messages]
-      summary: Admin-only — delete any tribute
+      summary: Owner/admin — delete any tribute
       parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
         - in: path
           name: id
           required: true
@@ -175,46 +215,317 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SimpleOk" }
 
-  /messages/stats:
+  /t/{slug}/reach:
     get:
-      operationId: getMessageStats
-      tags: [messages]
-      summary: Aggregate counts for the public wall
-      responses:
-        "200":
-          description: Stats
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/MessageStats" }
-
-  /reach/nodes:
-    get:
-      operationId: getReachNetwork
+      operationId: getReach
       tags: [reach]
-      summary: Curated list of places, projects, and communities touched by Luis's work
+      summary: Tenant reach graph — nodes, edges, and summary
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
       responses:
         "200":
-          description: Network graph nodes
+          description: Reach graph
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ReachNetwork" }
+              schema: { $ref: "#/components/schemas/ReachGraph" }
 
-  /storage/uploads/request-url:
+  /t/{slug}/reach/nodes:
     post:
-      operationId: requestUploadUrl
-      tags: [storage]
-      summary: Request a presigned upload URL
+      operationId: createReachNode
+      tags: [reach]
+      summary: Add a node to the tenant reach graph (auth required)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/UploadUrlInput" }
+            schema: { $ref: "#/components/schemas/ReachNodeInput" }
       responses:
-        "200":
-          description: Presigned URL
+        "201":
+          description: Created
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/UploadUrlResponse" }
+              schema: { $ref: "#/components/schemas/ReachNode" }
+
+  /t/{slug}/reach/edges:
+    post:
+      operationId: createReachEdge
+      tags: [reach]
+      summary: Add an edge to the tenant reach graph (auth required)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReachEdgeInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReachEdge" }
+
+  /t/{slug}/reach/nodes/{id}:
+    delete:
+      operationId: deleteReachNode
+      tags: [reach]
+      summary: Delete a reach node (owner/admin only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /t/{slug}/reach/edges/{id}:
+    delete:
+      operationId: deleteReachEdge
+      tags: [reach]
+      summary: Delete a reach edge (owner/admin only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /t/{slug}/blocks:
+    get:
+      operationId: listBlocks
+      tags: [blocks]
+      summary: List blocked users for a tenant (owner only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of blocked users
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BlockedUser" }
+    post:
+      operationId: createBlock
+      tags: [blocks]
+      summary: Block a user from a tenant (owner only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBlockBody" }
+      responses:
+        "201":
+          description: User blocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlockedUser" }
+        "200":
+          description: User was already blocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlockedUser" }
+
+  /t/{slug}/blocks/{userId}:
+    delete:
+      operationId: deleteBlock
+      tags: [blocks]
+      summary: Unblock a user from a tenant (owner only)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Unblocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /admin/tenants/{slug}:
+    patch:
+      operationId: adminUpdateTenant
+      tags: [admin]
+      summary: Super-admin — suspend or reactivate a tenant
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminTenantUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+
+  /tenants:
+    get:
+      operationId: listTenants
+      tags: [tenants]
+      summary: Public directory of active tenants
+      responses:
+        "200":
+          description: A list of active tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TenantSummary" }
+    post:
+      operationId: createTenant
+      tags: [tenants]
+      summary: Claim a new tenant (memorial page)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+        "409":
+          description: Slug already taken
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+        "422":
+          description: Invalid or reserved slug
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /tenants/mine:
+    get:
+      operationId: listMyTenants
+      tags: [tenants]
+      summary: List tenants owned by the authenticated caller
+      responses:
+        "200":
+          description: Caller's owned tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Tenant" }
+
+  /tenants/{slug}:
+    get:
+      operationId: getTenant
+      tags: [tenants]
+      summary: Get a tenant by slug
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+    patch:
+      operationId: updateTenant
+      tags: [tenants]
+      summary: Update a tenant (owner or admin)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /tenants/{slug}/availability:
+    get:
+      operationId: checkSlugAvailability
+      tags: [tenants]
+      summary: Check if a slug is available
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Availability result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlugAvailability" }
 
 components:
   schemas:
@@ -237,6 +548,11 @@ components:
       properties:
         email: { type: string, format: email }
         name: { type: string }
+        slug: { type: string, description: "Tenant slug — used to compute the post-login redirect path" }
+        intent:
+          type: string
+          enum: [compose, map, create]
+          description: "Desired post-login action"
 
     VerifyTokenInput:
       type: object
@@ -268,9 +584,10 @@ components:
 
     AuthSession:
       type: object
-      required: [user]
+      required: [user, redirectTo]
       properties:
         user: { $ref: "#/components/schemas/User" }
+        redirectTo: { type: string, description: "Internal path to redirect to after sign-in" }
 
     CardDesign:
       type: object
@@ -302,7 +619,7 @@ components:
       properties:
         type:
           type: string
-          enum: [card, video]
+          enum: [card, video, link]
         body:
           type: string
           description: Plain text body (used for card messages and video captions)
@@ -310,7 +627,7 @@ components:
           type: string
         relationship:
           type: string
-          description: How the author knew Luis (colleague, friend, family, client, etc.)
+          description: How the author knew the person being memorialized (colleague, friend, family, client, etc.)
         location:
           type: string
         videoPath:
@@ -323,6 +640,12 @@ components:
           oneOf:
             - { $ref: "#/components/schemas/CardDesign" }
             - { type: "null" }
+        url:
+          type: string
+          description: URL for link-type tributes
+        nodeId:
+          type: integer
+          description: Optional reach graph node to attach this tribute to
 
     Message:
       type: object
@@ -331,7 +654,7 @@ components:
         id: { type: integer }
         type:
           type: string
-          enum: [card, video]
+          enum: [card, video, link]
         body: { type: ["string", "null"] }
         authorName: { type: string }
         relationship: { type: ["string", "null"] }
@@ -342,6 +665,9 @@ components:
           oneOf:
             - { $ref: "#/components/schemas/CardDesign" }
             - { type: "null" }
+        url: { type: ["string", "null"], description: "URL for link-type tributes" }
+        nodeId: { type: ["integer", "null"], description: "Attached reach graph node id" }
+        userId: { type: ["integer", "null"], description: "Author's user id (owner-scoped)" }
         createdAt: { type: string, format: date-time }
 
     MessageUpdate:
@@ -368,26 +694,26 @@ components:
 
     ReachNode:
       type: object
-      required: [id, label, category]
+      required: [id, label, category, isAnchor, createdAt]
       properties:
-        id: { type: string }
+        id: { type: integer }
         label: { type: string }
-        category:
-          type: string
-          enum: [project, city, agency, community, team, wonder]
-        weight: { type: number }
-        lat: { type: ["number", "null"] }
-        lng: { type: ["number", "null"] }
-        note: { type: ["string", "null"] }
+        category: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        note: { type: string }
+        isAnchor: { type: boolean }
+        createdAt: { type: string, format: date-time }
 
     ReachEdge:
       type: object
-      required: [source, target]
+      required: [id, sourceNodeId, targetNodeId]
       properties:
-        source: { type: string }
-        target: { type: string }
+        id: { type: integer }
+        sourceNodeId: { type: integer }
+        targetNodeId: { type: integer }
 
-    ReachNetwork:
+    ReachGraph:
       type: object
       required: [nodes, edges, summary]
       properties:
@@ -397,31 +723,103 @@ components:
         edges:
           type: array
           items: { $ref: "#/components/schemas/ReachEdge" }
-        summary: { $ref: "#/components/schemas/ReachSummary" }
+        summary:
+          type: object
+          additionalProperties: true
 
-    ReachSummary:
+    ReachNodeInput:
       type: object
-      required: [projects, agencies, cities, livesTouched]
+      required: [label, category]
       properties:
-        projects: { type: integer }
-        agencies: { type: integer }
-        cities: { type: integer }
-        livesTouched: { type: integer }
-        yearsOfService: { type: integer }
-        teamSize: { type: integer }
-        wonders: { type: integer }
+        label: { type: string }
+        category: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        note: { type: string }
 
-    UploadUrlInput:
+    ReachEdgeInput:
       type: object
-      required: [name, contentType]
+      required: [sourceNodeId, targetNodeId]
       properties:
-        name: { type: string }
-        size: { type: integer }
-        contentType: { type: string }
+        sourceNodeId: { type: integer }
+        targetNodeId: { type: integer }
 
-    UploadUrlResponse:
+    Tenant:
       type: object
-      required: [uploadURL, objectPath]
+      required: [id, slug, friendName, status, pageConfig, createdAt]
       properties:
-        uploadURL: { type: string }
-        objectPath: { type: string }
+        id: { type: integer }
+        slug: { type: string }
+        friendName: { type: string }
+        birthYear: { type: integer }
+        deathYear: { type: integer }
+        tagline: { type: string }
+        status:
+          type: string
+          enum: [active, suspended]
+        pageConfig:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+
+    TenantSummary:
+      type: object
+      required: [id, slug, friendName]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        friendName: { type: string }
+        tagline: { type: string }
+
+    TenantInput:
+      type: object
+      required: [slug, friendName]
+      properties:
+        slug: { type: string }
+        friendName: { type: string }
+        birthYear: { type: integer }
+        deathYear: { type: integer }
+        tagline: { type: string }
+
+    TenantUpdate:
+      type: object
+      description: All fields optional
+      properties:
+        friendName: { type: string }
+        birthYear: { type: integer }
+        deathYear: { type: integer }
+        tagline: { type: string }
+        pageConfig:
+          type: object
+          additionalProperties: true
+
+    SlugAvailability:
+      type: object
+      required: [slug, available]
+      properties:
+        slug: { type: string }
+        available: { type: boolean }
+
+    BlockedUser:
+      type: object
+      required: [userId, createdAt]
+      properties:
+        userId: { type: integer }
+        email: { type: string }
+        name: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+
+    CreateBlockBody:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: integer }
+
+    AdminTenantUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, suspended]
+

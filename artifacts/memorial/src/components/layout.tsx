@@ -2,62 +2,117 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useListMyTenants, useGetTenant } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
+import { PLATFORM_SEGMENTS } from "@/lib/tenant";
+
+function useCurrentSlug(): string | undefined {
+  const [location] = useLocation();
+  const firstSegment = location.split("/")[1] ?? "";
+  if (PLATFORM_SEGMENTS.has(firstSegment)) return undefined;
+  return firstSegment || undefined;
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAdmin, logout, isLoggingOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [, navigate] = useLocation();
 
+  const slug = useCurrentSlug();
+  const isPlatform = slug === undefined;
+
+  // Fetch tenant name when on a tenant route.
+  // useGetTenant has enabled: !!(slug) built-in; passing "" keeps it disabled.
+  const { data: tenant } = useGetTenant(slug ?? "");
+
+  // Ownership detection: check if this slug is in my tenants list.
+  // Disable the query when not authenticated by overriding enabled via the query option.
+  const { data: myTenants } = useListMyTenants(
+    isAuthenticated && !!slug ? undefined : { query: { enabled: false, queryKey: ["/api/tenants/mine"] } },
+  );
+  const isOwner = isAdmin || (myTenants ?? []).some((t) => t.slug === slug);
+
   function go(path: string) {
     setMenuOpen(false);
     navigate(path);
   }
+
+  const brandName = isPlatform
+    ? "belovedfriend.org"
+    : (tenant?.friendName ?? slug ?? "…");
+
+  const brandHref = isPlatform ? "/" : `/${slug}`;
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background text-foreground font-sans">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link
-            href="/"
+            href={brandHref}
             className="font-serif italic text-xl tracking-wide text-foreground/90 hover:text-foreground transition-colors"
             onClick={() => setMenuOpen(false)}
           >
-            Luis Ventura
+            {brandName}
           </Link>
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6">
-            <a
-              href="/#reach"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              His Reach
-            </a>
-            <Link href="/wall" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Tributes
-            </Link>
-            {isAuthenticated ? (
-              <div className="flex items-center gap-4">
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Manage
+            {isPlatform ? (
+              // Platform nav
+              <>
+                <Link href="/create" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  Create a page
+                </Link>
+                {isAuthenticated ? (
+                  <div className="flex items-center gap-4">
+                    <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                      Dashboard
+                    </Link>
+                    <Button variant="ghost" size="sm" onClick={logout} disabled={isLoggingOut} className="text-muted-foreground">
+                      Sign Out
+                    </Button>
+                  </div>
+                ) : (
+                  <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    Sign In
                   </Link>
                 )}
-                <Link href="/compose" className="text-sm font-medium text-primary hover:text-primary/80 transition-colors">
-                  Leave a Tribute
-                </Link>
-                <Button variant="ghost" size="sm" onClick={logout} disabled={isLoggingOut} className="text-muted-foreground">
-                  Sign Out
-                </Button>
-              </div>
+              </>
             ) : (
-              <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Sign In
-              </Link>
+              // Tenant nav
+              <>
+                <Link href={`/${slug}/wall`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  Tributes
+                </Link>
+                <Link href={`/${slug}/map`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  Reach
+                </Link>
+                {isAuthenticated ? (
+                  <div className="flex items-center gap-4">
+                    {isOwner && (
+                      <Link href={`/${slug}/manage`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        Manage
+                      </Link>
+                    )}
+                    <Link
+                      href={`/${slug}/compose`}
+                      className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Leave a Tribute
+                    </Link>
+                    <Button variant="ghost" size="sm" onClick={logout} disabled={isLoggingOut} className="text-muted-foreground">
+                      Sign Out
+                    </Button>
+                  </div>
+                ) : (
+                  <Link
+                    href={`/sign-in?slug=${slug}&intent=compose`}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                )}
+              </>
             )}
           </nav>
 
@@ -77,58 +132,104 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {menuOpen && (
           <div className="md:hidden border-t border-border/40 bg-background/95 backdrop-blur-md">
             <nav className="container mx-auto px-4 py-4 flex flex-col gap-1 text-base">
-              <a
-                href="/#reach"
-                onClick={() => setMenuOpen(false)}
-                className="py-3 text-foreground/80 hover:text-foreground"
-              >
-                His Reach
-              </a>
-              <button
-                type="button"
-                onClick={() => go("/wall")}
-                className="py-3 text-left text-foreground/80 hover:text-foreground"
-              >
-                Tributes
-              </button>
-              {isAuthenticated ? (
+              {isPlatform ? (
+                // Platform mobile nav
                 <>
-                  {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => go("/create")}
+                    className="py-3 text-left text-foreground/80 hover:text-foreground"
+                  >
+                    Create a page
+                  </button>
+                  {isAuthenticated ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => go("/dashboard")}
+                        className="py-3 text-left text-foreground/80 hover:text-foreground"
+                      >
+                        Dashboard
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          logout();
+                        }}
+                        disabled={isLoggingOut}
+                        className="py-3 text-left text-muted-foreground hover:text-foreground"
+                      >
+                        Sign Out
+                      </button>
+                    </>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => go("/admin")}
+                      onClick={() => go("/sign-in")}
                       className="py-3 text-left text-foreground/80 hover:text-foreground"
                     >
-                      Manage
+                      Sign In
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => go("/compose")}
-                    className="py-3 text-left font-medium text-primary hover:text-primary/80"
-                  >
-                    Leave a Tribute
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      logout();
-                    }}
-                    disabled={isLoggingOut}
-                    className="py-3 text-left text-muted-foreground hover:text-foreground"
-                  >
-                    Sign Out
-                  </button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => go("/sign-in")}
-                  className="py-3 text-left text-foreground/80 hover:text-foreground"
-                >
-                  Sign In
-                </button>
+                // Tenant mobile nav
+                <>
+                  <button
+                    type="button"
+                    onClick={() => go(`/${slug}/wall`)}
+                    className="py-3 text-left text-foreground/80 hover:text-foreground"
+                  >
+                    Tributes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => go(`/${slug}/map`)}
+                    className="py-3 text-left text-foreground/80 hover:text-foreground"
+                  >
+                    Reach
+                  </button>
+                  {isAuthenticated ? (
+                    <>
+                      {isOwner && (
+                        <button
+                          type="button"
+                          onClick={() => go(`/${slug}/manage`)}
+                          className="py-3 text-left text-foreground/80 hover:text-foreground"
+                        >
+                          Manage
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => go(`/${slug}/compose`)}
+                        className="py-3 text-left font-medium text-primary hover:text-primary/80"
+                      >
+                        Leave a Tribute
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          logout();
+                        }}
+                        disabled={isLoggingOut}
+                        className="py-3 text-left text-muted-foreground hover:text-foreground"
+                      >
+                        Sign Out
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => go(`/sign-in?slug=${slug}&intent=compose`)}
+                      className="py-3 text-left text-foreground/80 hover:text-foreground"
+                    >
+                      Sign In
+                    </button>
+                  )}
+                </>
               )}
             </nav>
           </div>

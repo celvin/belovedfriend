@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  useGetReachNetwork,
-  useListMessages,
-  type Message,
+  useGetReach,
+  useGetTenant,
+  useCreateReachNode,
+  getGetReachQueryKey,
+  getGetTenantQueryKey,
   type ReachNode,
 } from "@workspace/api-client-react";
-import { X, Play, Video as VideoIcon, Plus, Network, Globe } from "lucide-react";
+import { X, Play, Plus, Network, Globe, Maximize2, Minimize2 } from "lucide-react";
 import { InlineVideoRecorder } from "@/components/inline-video-recorder";
 import { WorldMap, type PlottedNode } from "@/components/world-map";
+import { useAuth } from "@/hooks/use-auth";
 
 interface PositionedNode extends ReachNode {
   x: number;
@@ -19,16 +23,11 @@ interface PositionedNode extends ReachNode {
   radius: number;
 }
 
-const CATEGORY_LABEL: Record<ReachNode["category"], string> = {
-  project: "Project area",
-  city: "City",
-  agency: "Agency",
-  community: "Community",
-  team: "Team",
-  wonder: "Wonder of the World",
-};
+// Default color/label for unknown categories
+const DEFAULT_COLOR = "#8A7A5A";
+const DEFAULT_LABEL = "Other";
 
-const CATEGORY_COLOR: Record<ReachNode["category"], string> = {
+const KNOWN_COLORS: Record<string, string> = {
   project: "#B47C34",
   city: "#7A4A1F",
   agency: "#4A6B4A",
@@ -37,43 +36,191 @@ const CATEGORY_COLOR: Record<ReachNode["category"], string> = {
   wonder: "#A03A6B",
 };
 
+const KNOWN_LABELS: Record<string, string> = {
+  project: "Project area",
+  city: "City",
+  agency: "Agency",
+  community: "Community",
+  team: "Team",
+  wonder: "Wonder of the World",
+};
+
+function categoryColor(cat: string): string {
+  return KNOWN_COLORS[cat] ?? DEFAULT_COLOR;
+}
+
+function categoryLabel(cat: string): string {
+  return KNOWN_LABELS[cat] ?? DEFAULT_LABEL;
+}
+
 function radiusFor(node: ReachNode): number {
   const base =
     node.category === "wonder" ? 7 :
     node.category === "project" ? 6 :
     node.category === "city" ? 5 :
     4;
-  return base + Math.min(node.weight ?? 1, 6) * 0.6;
-}
-
-function videosForNode(node: ReachNode, all: Message[]): Message[] {
-  const videos = all.filter((m) => m.type === "video" && m.videoPath);
-  if (node.category === "city") {
-    const cityName = node.label.split(",")[0]?.trim().toLowerCase();
-    if (!cityName) return [];
-    return videos.filter((v) =>
-      (v.location ?? "").toLowerCase().includes(cityName),
-    );
-  }
-  // For non-city nodes, surface a small recent sampling so the marker always has something to show.
-  return videos.slice(0, 4);
+  return base;
 }
 
 type ViewMode = "constellation" | "map";
 
-export function ReachNetwork() {
-  const { data, isLoading } = useGetReachNetwork();
-  const { data: messages } = useListMessages({ type: "all", limit: 200 });
+interface AddNodeFormProps {
+  slug: string;
+  onClose: () => void;
+}
+
+function AddNodeForm({ slug, onClose }: AddNodeFormProps) {
+  const queryClient = useQueryClient();
+  const createNode = useCreateReachNode();
+  const [label, setLabel] = useState("");
+  const [category, setCategory] = useState("city");
+  const [note, setNote] = useState("");
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const data: { label: string; category: string; note?: string; lat?: number; lng?: number } = {
+      label: label.trim(),
+      category,
+    };
+    if (note.trim()) data.note = note.trim();
+    if (lat.trim()) {
+      const n = parseFloat(lat);
+      if (isNaN(n)) { setError("Latitude must be a number"); return; }
+      data.lat = n;
+    }
+    if (lng.trim()) {
+      const n = parseFloat(lng);
+      if (isNaN(n)) { setError("Longitude must be a number"); return; }
+      data.lng = n;
+    }
+    createNode.mutate({ slug, data }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetReachQueryKey(slug) });
+        onClose();
+      },
+      onError: () => setError("Failed to add node. Try again."),
+    });
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+    >
+      <div className="bg-card border border-border/60 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif text-lg">Add to the map</h3>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded">
+            <X size={16} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">Place or area name</label>
+            <input
+              className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+              value={label}
+              onChange={e => setLabel(e.target.value)}
+              placeholder="e.g. São Paulo, Brazil"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">Category</label>
+            <select
+              className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+            >
+              <option value="city">City</option>
+              <option value="project">Project area</option>
+              <option value="community">Community</option>
+              <option value="team">Team</option>
+              <option value="agency">Agency</option>
+              <option value="wonder">Wonder of the World</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Latitude (opt.)</label>
+              <input
+                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                value={lat}
+                onChange={e => setLat(e.target.value)}
+                placeholder="e.g. -23.55"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Longitude (opt.)</label>
+              <input
+                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                value={lng}
+                onChange={e => setLng(e.target.value)}
+                placeholder="e.g. -46.63"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">Note (opt.)</label>
+            <input
+              className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="A brief description"
+            />
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="submit"
+              disabled={createNode.isPending || !label.trim()}
+              className="flex-1 bg-primary text-primary-foreground rounded-full py-2 text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
+            >
+              {createNode.isPending ? "Adding…" : "Add to map"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 rounded-full py-2 text-sm border border-border/40 hover:bg-muted/40 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </motion.div>
+  );
+}
+
+interface ReachNetworkProps {
+  slug: string;
+}
+
+export function ReachNetwork({ slug }: ReachNetworkProps) {
+  const { data, isLoading } = useGetReach(slug);
+  const { data: tenant } = useGetTenant(slug, {
+    query: { enabled: !!slug, queryKey: getGetTenantQueryKey(slug) },
+  });
+  const { isAuthenticated } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1, h: 600 });
   const [nodes, setNodes] = useState<PositionedNode[]>([]);
-  const [selected, setSelected] = useState<{ id: string; x: number; y: number; radius: number } | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{ id: number; x: number; y: number; radius: number } | null>(null);
+  const [hovered, setHovered] = useState<number | null>(null);
   const [view, setView] = useState<ViewMode>("map");
   const [mapPlotted, setMapPlotted] = useState<PlottedNode[]>([]);
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth < 768 : false,
   );
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showAddNode, setShowAddNode] = useState(false);
   const animationRef = useRef<number | null>(null);
   const nodesRef = useRef<PositionedNode[]>([]);
 
@@ -82,6 +229,24 @@ export function ReachNetwork() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // Fullscreen handling
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  function toggleFullscreen() {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(() => {/* ignore */});
+    } else {
+      document.exitFullscreen().catch(() => {/* ignore */});
+    }
+  }
 
   // Initialize layout
   useEffect(() => {
@@ -115,7 +280,7 @@ export function ReachNetwork() {
     return () => ro.disconnect();
   }, [data]);
 
-  // Gentle, slow drift animation. Pauses when a node is selected so the marker stays anchored.
+  // Gentle, slow drift animation. Pauses when a node is selected.
   useEffect(() => {
     if (!nodes.length || view !== "constellation") return;
     let last = performance.now();
@@ -142,8 +307,7 @@ export function ReachNetwork() {
     };
   }, [nodes.length, selected, size.w, size.h, view]);
 
-  // The "live" position of the selected node — tracks drift in constellation, or
-  // reprojected coordinates in map view.
+  // The "live" position of the selected node
   const selectedLive = useMemo(() => {
     if (!selected) return null;
     if (view === "map") {
@@ -174,7 +338,7 @@ export function ReachNetwork() {
     if (!data) return [];
     const byId = new Map(nodes.map((n) => [n.id, n]));
     return data.edges
-      .map((e) => ({ source: byId.get(e.source), target: byId.get(e.target) }))
+      .map((e) => ({ source: byId.get(e.sourceNodeId), target: byId.get(e.targetNodeId) }))
       .filter(
         (e): e is { source: PositionedNode; target: PositionedNode } =>
           !!e.source && !!e.target,
@@ -184,27 +348,47 @@ export function ReachNetwork() {
   if (isLoading || !data) {
     return (
       <div className="h-[640px] w-full flex items-center justify-center text-muted-foreground font-serif italic">
-        Loading the network of his impact...
+        Loading the network of their impact...
       </div>
     );
   }
 
-  const summary = data.summary;
-  const allMessages = messages ?? [];
+  const summary = data.summary as Record<string, unknown>;
+  const numFromSummary = (k: string) =>
+    typeof summary[k] === "number" ? (summary[k] as number) : undefined;
+  const derivedValue = (key?: string): string => {
+    switch (key) {
+      case "nodeCount": return String(numFromSummary("nodeCount") ?? data.nodes.length);
+      case "placeCount": return String(numFromSummary("placeCount") ?? 0);
+      case "contributorCount": return String(numFromSummary("contributorCount") ?? 0);
+      case "countryCount": return String(numFromSummary("countryCount") ?? 0);
+      default: return "";
+    }
+  };
+  // Owner-configured callouts (page_config.reachSummary), else fall back to counts.
+  const pc = (tenant?.pageConfig ?? {}) as Record<string, unknown>;
+  const reachSummaryCfg = Array.isArray(pc.reachSummary)
+    ? (pc.reachSummary as Array<{ label: string; value?: string | number; derived?: string }>)
+    : [];
+  const summaryItems =
+    reachSummaryCfg.length > 0
+      ? reachSummaryCfg.map((it) => ({
+          label: it.label,
+          value: it.value != null ? String(it.value) : derivedValue(it.derived),
+        }))
+      : [
+          { label: "Total nodes", value: String(data.nodes.length) },
+          { label: "Connections", value: String(data.edges.length) },
+        ];
+
+  // Build unique categories present in the data
+  const presentCategories = Array.from(new Set(data.nodes.map((n) => n.category)));
 
   return (
     <div className="space-y-8">
-      {/* Summary numbers — readable on entry, not gated behind animation */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-6 md:gap-6 text-center">
-        {[
-          { label: "Lives touched", value: summary.livesTouched?.toLocaleString() ?? "—" },
-          { label: "Years of service", value: `${summary.yearsOfService}+` },
-          { label: "Project areas", value: summary.projects.toString() },
-          { label: "Agency types", value: summary.agencies.toString() },
-          { label: "Cities", value: summary.cities.toString() },
-          { label: "Team members", value: `${summary.teamSize}+` },
-          { label: "Wonders visited", value: (summary.wonders ?? 7).toString() },
-        ].map((s, i) => (
+      {/* Summary callouts from page_config.reachSummary (fallback to counts) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 md:gap-6 text-center">
+        {summaryItems.map((s, i) => (
           <motion.div
             key={s.label}
             initial={{ opacity: 0, y: 12 }}
@@ -253,6 +437,35 @@ export function ReachNetwork() {
         ref={containerRef}
         className="relative w-full h-[420px] md:h-[640px] rounded-2xl border border-border/30 overflow-hidden bg-gradient-to-b from-background to-muted/40"
       >
+        {/* Fullscreen + Add buttons */}
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+          {isAuthenticated ? (
+            <button
+              type="button"
+              onClick={() => setShowAddNode(true)}
+              title="Add a place to the map"
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-primary/30 bg-card/80 backdrop-blur-sm text-primary hover:bg-primary/10 transition"
+            >
+              <Plus size={12} /> Add to map
+            </button>
+          ) : (
+            <Link
+              href={`/sign-in?slug=${slug}&intent=map`}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-border/30 bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground transition"
+            >
+              <Plus size={12} /> Add to map
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            className="p-1.5 rounded-full border border-border/30 bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground transition"
+          >
+            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
+        </div>
+
         {view === "constellation" ? (
           <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${size.w} ${size.h}`}>
             {/* edges */}
@@ -274,7 +487,7 @@ export function ReachNetwork() {
                     y1={e.source.y}
                     x2={e.target.x}
                     y2={e.target.y}
-                    stroke={isActive ? CATEGORY_COLOR[selectedLive!.category] : "#B47C34"}
+                    stroke={isActive ? categoryColor(selectedLive!.category) : "#B47C34"}
                     strokeOpacity={isActive ? 0.55 : opacity}
                     strokeWidth={isActive ? 1 : 0.6}
                   />
@@ -287,7 +500,7 @@ export function ReachNetwork() {
               {nodes.map((n) => {
                 const isHover = hovered === n.id;
                 const isSel = selectedLive?.id === n.id;
-                const color = CATEGORY_COLOR[n.category];
+                const color = categoryColor(n.category);
                 return (
                   <g
                     key={n.id}
@@ -310,8 +523,7 @@ export function ReachNetwork() {
                     />
                     {(isHover ||
                       isSel ||
-                      (!isMobile &&
-                        (n.category === "project" || n.category === "team"))) && (
+                      (!isMobile && (n.category === "project" || n.category === "team"))) && (
                       <text
                         x={n.radius + 8}
                         y={4}
@@ -359,27 +571,23 @@ export function ReachNetwork() {
         {!selectedLive && (
           <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs tracking-widest uppercase text-muted-foreground/70">
             {view === "map"
-              ? "Click any place to leave a tribute from that location"
-              : "Click any point to explore tributes from that place"}
+              ? "Click any place to explore"
+              : "Click any point to explore"}
           </div>
         )}
 
         {/* Legend */}
-        <div className="absolute top-3 left-3 right-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] md:text-xs">
+        <div className="absolute top-3 left-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] md:text-xs" style={{ maxWidth: "60%" }}>
           {(view === "map"
-            ? (Array.from(
-                new Set(
-                  mapPlotted.map((p) => p.node.category),
-                ),
-              ) as Array<keyof typeof CATEGORY_COLOR>)
-            : (Object.keys(CATEGORY_COLOR) as Array<keyof typeof CATEGORY_COLOR>)
+            ? Array.from(new Set(mapPlotted.map((p) => p.node.category)))
+            : presentCategories
           ).map((k) => (
             <div key={k} className="flex items-center gap-1.5 text-muted-foreground">
               <span
                 className="inline-block w-2.5 h-2.5 rounded-full"
-                style={{ backgroundColor: CATEGORY_COLOR[k] }}
+                style={{ backgroundColor: categoryColor(k) }}
               />
-              <span className="capitalize">{k}</span>
+              <span className="capitalize">{categoryLabel(k)}</span>
             </div>
           ))}
         </div>
@@ -390,10 +598,17 @@ export function ReachNetwork() {
             <NodeMarker
               key={`${view}-${selectedLive.id}`}
               node={selectedLive}
+              slug={slug}
               size={size}
-              videos={videosForNode(selectedLive, allMessages)}
               onClose={() => setSelected(null)}
             />
+          )}
+        </AnimatePresence>
+
+        {/* Add node form */}
+        <AnimatePresence>
+          {showAddNode && (
+            <AddNodeForm slug={slug} onClose={() => setShowAddNode(false)} />
           )}
         </AnimatePresence>
       </div>
@@ -403,13 +618,13 @@ export function ReachNetwork() {
 
 function NodeMarker({
   node,
+  slug,
   size,
-  videos,
   onClose,
 }: {
   node: PositionedNode;
+  slug: string;
   size: { w: number; h: number };
-  videos: Message[];
   onClose: () => void;
 }) {
   const [recording, setRecording] = useState(false);
@@ -440,7 +655,7 @@ function NodeMarker({
       <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2 border-b border-border/40">
         <div className="min-w-0">
           <div className="text-[10px] tracking-widest uppercase text-muted-foreground">
-            {CATEGORY_LABEL[node.category]}
+            {categoryLabel(node.category)}
           </div>
           <div className="font-serif text-lg leading-tight text-foreground truncate">
             {node.label}
@@ -459,9 +674,10 @@ function NodeMarker({
           {node.note}
         </p>
       )}
-      <div className="px-4 py-3 max-h-[400px] overflow-y-auto">
+      <div className="px-4 py-3">
         {recording ? (
           <InlineVideoRecorder
+            slug={slug}
             defaultLocation={defaultLocation}
             contextLabel={node.label}
             onCancel={() => setRecording(false)}
@@ -469,65 +685,22 @@ function NodeMarker({
               setRecording(false);
             }}
           />
-        ) : videos.length === 0 ? (
-          <div className="text-sm text-muted-foreground space-y-3">
-            <div className="flex items-center gap-2 text-foreground/80">
-              <VideoIcon size={14} className="text-primary" />
-              <span className="font-medium">No video tributes here yet</span>
-            </div>
-            <p className="text-xs leading-relaxed">
-              {node.category === "city"
-                ? "Be the first to share a memory from this place."
-                : "Be the first to share a memory about this part of his work."}
-            </p>
-            <button
-              type="button"
-              onClick={() => setRecording(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-            >
-              <VideoIcon size={12} /> Record a tribute here →
-            </button>
-          </div>
         ) : (
           <div className="space-y-3">
-            <ul className="space-y-3">
-              {videos.map((v) => (
-                <li key={v.id}>
-                  <Link
-                    href={`/tribute/${v.id}`}
-                    className="flex items-center gap-3 group rounded-md p-1 -m-1 hover:bg-muted/60 transition"
-                  >
-                    <div className="relative w-16 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                      <video
-                        src={`/api/storage${v.videoPath}`}
-                        preload="metadata"
-                        muted
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition">
-                        <Play size={16} className="text-white drop-shadow" />
-                      </div>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-foreground truncate">
-                        {v.authorName}
-                      </div>
-                      {v.relationship && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {v.relationship}
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <div className="text-sm text-muted-foreground">
+              <Link
+                href={`/${slug}/compose`}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+              >
+                <Play size={12} /> Leave a tribute from {node.label} →
+              </Link>
+            </div>
             <button
               type="button"
               onClick={() => setRecording(true)}
               className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/5 rounded-md py-2 border border-dashed border-primary/30"
             >
-              <Plus size={12} /> Add your tribute for {node.label}
+              <Plus size={12} /> Record a video tribute here
             </button>
           </div>
         )}

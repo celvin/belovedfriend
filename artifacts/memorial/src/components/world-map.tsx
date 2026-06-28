@@ -33,7 +33,8 @@ function loadWorld(): Promise<AnyFeature[]> {
   return inFlight;
 }
 
-const CATEGORY_COLOR: Record<ReachNode["category"], string> = {
+const DEFAULT_COLOR = "#8A7A5A";
+const KNOWN_COLORS: Record<string, string> = {
   project: "#B47C34",
   city: "#7A4A1F",
   agency: "#4A6B4A",
@@ -41,6 +42,10 @@ const CATEGORY_COLOR: Record<ReachNode["category"], string> = {
   team: "#2B556B",
   wonder: "#A03A6B",
 };
+
+function categoryColor(cat: string): string {
+  return KNOWN_COLORS[cat] ?? DEFAULT_COLOR;
+}
 
 export interface PlottedNode {
   node: ReachNode;
@@ -53,11 +58,11 @@ interface Props {
   nodes: ReachNode[];
   width: number;
   height: number;
-  selectedId?: string | null;
-  hoveredId?: string | null;
+  selectedId?: number | null;
+  hoveredId?: number | null;
   compact?: boolean;
-  onHover?: (id: string | null) => void;
-  onSelect?: (id: string) => void;
+  onHover?: (id: number | null) => void;
+  onSelect?: (id: number) => void;
   onLayout?: (plotted: PlottedNode[]) => void;
 }
 
@@ -236,7 +241,7 @@ export function WorldMap({
       {isReady && (
         <g>
           {plotted.map((p) => {
-            const color = CATEGORY_COLOR[p.node.category];
+            const color = categoryColor(p.node.category);
             const isSel = selectedId === p.node.id;
             const isHov = hoveredId === p.node.id;
             return (

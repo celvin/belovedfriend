@@ -1,19 +1,34 @@
 [build]
   base = "."
-  command = "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @workspace/memorial run build"
+  command = "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/memorial run build"
   publish = "artifacts/memorial/dist/public"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "22"
   BASE_PATH = "/"
   PORT = "4173"
-  NPM_FLAGS = "--version" # opt out of Netlify's default `npm install` — pnpm runs in `command`
+  NPM_FLAGS = "--version" # opt out of Netlify's default npm install — pnpm runs in `command`
 
-# Proxy all API traffic to the Railway backend so the frontend and API share an origin.
-# This keeps the JWT session cookie (HttpOnly, SameSite=lax) working without CORS config.
+# Blobs upload endpoint — native function, bypasses the Express catch-all.
+[[redirects]]
+  from = "/api/uploads"
+  to = "/.netlify/functions/upload"
+  status = 200
+  force = true
+
+# Blobs media serve endpoint — native function, bypasses the Express catch-all.
+[[redirects]]
+  from = "/api/objects/*"
+  to = "/.netlify/functions/media/:splat"
+  status = 200
+  force = true
+
+# Serve the API from the in-repo Netlify Function (replaces the Railway proxy).
+# Same-origin, so the JWT session cookie (HttpOnly, SameSite=lax) keeps working.
 [[redirects]]
   from = "/api/*"
-  to = "https://api-production-a2bf.up.railway.app/api/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
 

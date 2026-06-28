@@ -1,27 +1,38 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useState } from "react";
+import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { VideoRecorder } from "@/components/video-recorder";
 import { CardDesigner } from "@/components/card-designer";
 import { Video, PenTool } from "lucide-react";
+import { useTenantSlug } from "@/lib/tenant";
 
 export default function Compose() {
+  const slug = useTenantSlug() ?? "";
   const { isAuthenticated, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
   const [mode, setMode] = useState<"select" | "video" | "card">("select");
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      setLocation("/sign-in");
-    }
-  }, [isLoading, isAuthenticated, setLocation]);
-
-  if (isLoading || !isAuthenticated) {
+  if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="font-serif italic text-muted-foreground">Preparing...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-6">
+        <h1 className="text-3xl font-serif">Sign in to leave a tribute</h1>
+        <p className="text-muted-foreground font-serif italic max-w-md">
+          We use a magic link to verify your identity — no password needed.
+        </p>
+        <Link href={`/sign-in?slug=${slug}&intent=compose`}>
+          <Button size="lg" className="font-serif rounded-full px-8">
+            Get a magic link
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -30,7 +41,7 @@ export default function Compose() {
     <div className="flex-1 flex flex-col items-center bg-background/50">
       <AnimatePresence mode="wait">
         {mode === "select" ? (
-          <motion.div 
+          <motion.div
             key="select"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -43,7 +54,7 @@ export default function Compose() {
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl">
-              <button 
+              <button
                 onClick={() => setMode("video")}
                 className="group relative flex flex-col items-center p-12 bg-card border border-border/40 rounded-3xl shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden text-left"
               >
@@ -57,7 +68,7 @@ export default function Compose() {
                 </p>
               </button>
 
-              <button 
+              <button
                 onClick={() => setMode("card")}
                 className="group relative flex flex-col items-center p-12 bg-card border border-border/40 rounded-3xl shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden text-left"
               >
@@ -73,7 +84,7 @@ export default function Compose() {
             </div>
           </motion.div>
         ) : mode === "video" ? (
-          <motion.div 
+          <motion.div
             key="video"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -84,11 +95,11 @@ export default function Compose() {
               <Button variant="ghost" onClick={() => setMode("select")} className="mb-8 font-serif text-muted-foreground hover:text-foreground">
                 ← Back
               </Button>
-              <VideoRecorder />
+              <VideoRecorder slug={slug} />
             </div>
           </motion.div>
         ) : (
-          <motion.div 
+          <motion.div
             key="card"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -99,7 +110,7 @@ export default function Compose() {
               <Button variant="ghost" onClick={() => setMode("select")} className="mb-8 font-serif text-muted-foreground hover:text-foreground">
                 ← Back
               </Button>
-              <CardDesigner />
+              <CardDesigner slug={slug} />
             </div>
           </motion.div>
         )}
