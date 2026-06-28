@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -54,10 +54,36 @@ function buildThemeStyle(theme?: Record<string, unknown>): React.CSSProperties |
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAdmin, logout, isLoggingOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
   const slug = useCurrentSlug();
   const isPlatform = slug === undefined;
+
+  // SPA route changes keep the previous scroll position; reset to the top so a
+  // top-nav click always lands you at the top of the new page.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+  const scrollTop = () => window.scrollTo(0, 0);
+
+  // Active-route detection for highlighting the current nav item.
+  const tenantBase = `/${slug}`;
+  const active = {
+    home: location === tenantBase,
+    wall: location.startsWith(`${tenantBase}/wall`) || location.startsWith(`${tenantBase}/tribute`),
+    map: location.startsWith(`${tenantBase}/map`),
+    manage: location.startsWith(`${tenantBase}/manage`),
+    compose: location.startsWith(`${tenantBase}/compose`),
+    create: location === "/create",
+    dashboard: location.startsWith("/dashboard"),
+    signin: location.startsWith("/sign-in"),
+  };
+  const navCls = (isActive: boolean) =>
+    `text-sm transition-colors ${
+      isActive ? "text-foreground font-semibold" : "text-muted-foreground font-medium hover:text-foreground"
+    }`;
+  const mobileCls = (isActive: boolean) =>
+    `py-3 text-left ${isActive ? "text-foreground font-semibold" : "text-foreground/80 hover:text-foreground"}`;
 
   // Fetch tenant name when on a tenant route.
   // useGetTenant has enabled: !!(slug) built-in; passing "" keeps it disabled.
@@ -73,6 +99,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   function go(path: string) {
     setMenuOpen(false);
     navigate(path);
+    window.scrollTo(0, 0);
   }
 
   const brandName = isPlatform
@@ -110,12 +137,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {isPlatform ? (
               // Platform nav
               <>
-                <Link href="/create" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/create" onClick={scrollTop} aria-current={active.create ? "page" : undefined} className={navCls(active.create)}>
                   Create a page
                 </Link>
                 {isAuthenticated ? (
                   <div className="flex items-center gap-4">
-                    <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    <Link href="/dashboard" onClick={scrollTop} aria-current={active.dashboard ? "page" : undefined} className={navCls(active.dashboard)}>
                       Dashboard
                     </Link>
                     <Button variant="ghost" size="sm" onClick={logout} disabled={isLoggingOut} className="text-muted-foreground">
@@ -123,7 +150,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </Button>
                   </div>
                 ) : (
-                  <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <Link href="/sign-in" onClick={scrollTop} aria-current={active.signin ? "page" : undefined} className={navCls(active.signin)}>
                     Sign In
                   </Link>
                 )}
@@ -131,25 +158,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ) : (
               // Tenant nav
               <>
-                <Link href={`/${slug}`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <Link href={`/${slug}`} onClick={scrollTop} aria-current={active.home ? "page" : undefined} className={navCls(active.home)}>
                   Home
                 </Link>
-                <Link href={`/${slug}/wall`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <Link href={`/${slug}/wall`} onClick={scrollTop} aria-current={active.wall ? "page" : undefined} className={navCls(active.wall)}>
                   Tributes
                 </Link>
-                <Link href={`/${slug}/map`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <Link href={`/${slug}/map`} onClick={scrollTop} aria-current={active.map ? "page" : undefined} className={navCls(active.map)}>
                   Reach
                 </Link>
                 {isAuthenticated ? (
                   <div className="flex items-center gap-4">
                     {isOwner && (
-                      <Link href={`/${slug}/manage`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                      <Link href={`/${slug}/manage`} onClick={scrollTop} aria-current={active.manage ? "page" : undefined} className={navCls(active.manage)}>
                         Manage
                       </Link>
                     )}
                     <Link
                       href={`/${slug}/compose`}
-                      className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                      onClick={scrollTop}
+                      aria-current={active.compose ? "page" : undefined}
+                      className={`text-sm font-medium transition-colors ${active.compose ? "text-primary font-semibold" : "text-primary hover:text-primary/80"}`}
                     >
                       Leave a Tribute
                     </Link>
@@ -160,7 +189,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 ) : (
                   <Link
                     href={`/sign-in?slug=${slug}&intent=compose`}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={scrollTop}
+                    aria-current={active.signin ? "page" : undefined}
+                    className={navCls(active.signin)}
                   >
                     Sign In
                   </Link>
@@ -191,7 +222,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     onClick={() => go("/create")}
-                    className="py-3 text-left text-foreground/80 hover:text-foreground"
+                    className={mobileCls(active.create)}
                   >
                     Create a page
                   </button>
@@ -200,7 +231,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <button
                         type="button"
                         onClick={() => go("/dashboard")}
-                        className="py-3 text-left text-foreground/80 hover:text-foreground"
+                        className={mobileCls(active.dashboard)}
                       >
                         Dashboard
                       </button>
@@ -220,7 +251,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <button
                       type="button"
                       onClick={() => go("/sign-in")}
-                      className="py-3 text-left text-foreground/80 hover:text-foreground"
+                      className={mobileCls(active.signin)}
                     >
                       Sign In
                     </button>
@@ -232,21 +263,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     onClick={() => go(`/${slug}`)}
-                    className="py-3 text-left text-foreground/80 hover:text-foreground"
+                    className={mobileCls(active.home)}
                   >
                     Home
                   </button>
                   <button
                     type="button"
                     onClick={() => go(`/${slug}/wall`)}
-                    className="py-3 text-left text-foreground/80 hover:text-foreground"
+                    className={mobileCls(active.wall)}
                   >
                     Tributes
                   </button>
                   <button
                     type="button"
                     onClick={() => go(`/${slug}/map`)}
-                    className="py-3 text-left text-foreground/80 hover:text-foreground"
+                    className={mobileCls(active.map)}
                   >
                     Reach
                   </button>
@@ -256,7 +287,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <button
                           type="button"
                           onClick={() => go(`/${slug}/manage`)}
-                          className="py-3 text-left text-foreground/80 hover:text-foreground"
+                          className={mobileCls(active.manage)}
                         >
                           Manage
                         </button>
@@ -264,7 +295,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <button
                         type="button"
                         onClick={() => go(`/${slug}/compose`)}
-                        className="py-3 text-left font-medium text-primary hover:text-primary/80"
+                        className={`py-3 text-left font-medium ${active.compose ? "text-primary font-semibold" : "text-primary hover:text-primary/80"}`}
                       >
                         Leave a Tribute
                       </button>
@@ -284,7 +315,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <button
                       type="button"
                       onClick={() => go(`/sign-in?slug=${slug}&intent=compose`)}
-                      className="py-3 text-left text-foreground/80 hover:text-foreground"
+                      className={mobileCls(active.signin)}
                     >
                       Sign In
                     </button>
