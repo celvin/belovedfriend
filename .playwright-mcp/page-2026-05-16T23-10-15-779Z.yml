@@ -1,0 +1,19 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Luis Ventura" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - button "Open menu" [ref=e7]:
+          - img [ref=e8]
+    - main [ref=e9]:
+      - generic [ref=e12]:
+        - heading "Tribute Wall" [level=1] [ref=e13]
+        - generic [ref=e14]:
+          - button "All Messages" [ref=e15]
+          - button "Cards" [ref=e16]
+          - button "Videos" [ref=e17]
+    - contentinfo [ref=e28]:
+      - paragraph [ref=e30]: In loving memory.
+  - region "Notifications (F8)":
+    - list

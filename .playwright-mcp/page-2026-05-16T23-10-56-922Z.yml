@@ -1,0 +1,119 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Luis Ventura" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - button "Close menu" [expanded] [active] [ref=e45]:
+          - img [ref=e46]
+      - navigation [ref=e50]:
+        - link "His Reach" [ref=e51] [cursor=pointer]:
+          - /url: /#reach
+        - button "Tributes" [ref=e52]
+        - button "Sign In" [ref=e53]
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - heading "Luis Ventura" [level=1] [ref=e14]
+            - paragraph [ref=e15]: 1965 — 2026
+          - paragraph [ref=e17]: An extraordinary engineer, a visionary leader, and a generous soul. He built the foundations we stand on and lifted everyone around him.
+          - generic [ref=e18]:
+            - link "Leave a Tribute" [ref=e19] [cursor=pointer]:
+              - /url: /compose
+              - button "Leave a Tribute" [ref=e20]
+            - link "Read Tributes" [ref=e21] [cursor=pointer]:
+              - /url: /wall
+              - button "Read Tributes" [ref=e22]
+            - link "Explore His Reach" [ref=e23] [cursor=pointer]:
+              - /url: "#reach"
+              - button "Explore His Reach" [ref=e24]
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - generic [ref=e28]: The Reach of His Work
+            - heading "A quiet thread through countless lives" [level=2] [ref=e29]
+            - paragraph [ref=e30]: Every employee at LCPtracker and Cikume, and millions of families connected to the projects, streets, and construction sites his software helped run (his code), were touched by him. He also believed the world was meant to be seen — and he saw all seven wonders of it with his own eyes. Click any point below to explore.
+          - generic [ref=e31]:
+            - generic [ref=e54]:
+              - generic [ref=e55]:
+                - generic [ref=e56]: 1,200,000
+                - generic [ref=e57]: Lives touched
+              - generic [ref=e58]:
+                - generic [ref=e59]: 20+
+                - generic [ref=e60]: Years of service
+              - generic [ref=e61]:
+                - generic [ref=e62]: "8"
+                - generic [ref=e63]: Project areas
+              - generic [ref=e64]:
+                - generic [ref=e65]: "5"
+                - generic [ref=e66]: Agency types
+              - generic [ref=e67]:
+                - generic [ref=e68]: "24"
+                - generic [ref=e69]: Cities
+              - generic [ref=e70]:
+                - generic [ref=e71]: 70+
+                - generic [ref=e72]: Team members
+              - generic [ref=e73]:
+                - generic [ref=e74]: "7"
+                - generic [ref=e75]: Wonders visited
+            - generic [ref=e77]:
+              - button "Constellation" [ref=e78]:
+                - img [ref=e79]
+                - text: Constellation
+              - button "World map" [ref=e84]:
+                - img [ref=e85]
+                - text: World map
+            - generic [ref=e88]:
+              - img [ref=e89]:
+                - generic [ref=e277]:
+                  - button "LCPtracker — Orange, CA — open tributes" [ref=e278] [cursor=pointer]
+                  - button "Cikume — San Salvador — open tributes" [ref=e282] [cursor=pointer]
+                  - button "Los Angeles, CA — open tributes" [ref=e286] [cursor=pointer]
+                  - button "San Francisco, CA — open tributes" [ref=e290] [cursor=pointer]
+                  - button "San Diego, CA — open tributes" [ref=e294] [cursor=pointer]
+                  - button "Sacramento, CA — open tributes" [ref=e298] [cursor=pointer]
+                  - button "New York, NY — open tributes" [ref=e302] [cursor=pointer]
+                  - button "Chicago, IL — open tributes" [ref=e306] [cursor=pointer]
+                  - button "Houston, TX — open tributes" [ref=e310] [cursor=pointer]
+                  - button "Dallas, TX — open tributes" [ref=e314] [cursor=pointer]
+                  - button "Phoenix, AZ — open tributes" [ref=e318] [cursor=pointer]
+                  - button "Seattle, WA — open tributes" [ref=e322] [cursor=pointer]
+                  - button "Denver, CO — open tributes" [ref=e326] [cursor=pointer]
+                  - button "Atlanta, GA — open tributes" [ref=e330] [cursor=pointer]
+                  - button "Miami, FL — open tributes" [ref=e334] [cursor=pointer]
+                  - button "Boston, MA — open tributes" [ref=e338] [cursor=pointer]
+                  - button "Washington, DC — open tributes" [ref=e342] [cursor=pointer]
+                  - button "Portland, OR — open tributes" [ref=e346] [cursor=pointer]
+                  - button "Minneapolis, MN — open tributes" [ref=e350] [cursor=pointer]
+                  - button "Nashville, TN — open tributes" [ref=e354] [cursor=pointer]
+                  - button "Austin, TX — open tributes" [ref=e358] [cursor=pointer]
+                  - button "Salt Lake City, UT — open tributes" [ref=e362] [cursor=pointer]
+                  - button "Oklahoma City, OK — open tributes" [ref=e366] [cursor=pointer]
+                  - button "Cleveland, OH — open tributes" [ref=e370] [cursor=pointer]
+                  - button "Philadelphia, PA — open tributes" [ref=e374] [cursor=pointer]
+                  - button "Detroit, MI — open tributes" [ref=e378] [cursor=pointer]
+                  - button "Great Wall of China — open tributes" [ref=e382] [cursor=pointer]
+                  - button "Petra, Jordan — open tributes" [ref=e386] [cursor=pointer]
+                  - button "Christ the Redeemer, Rio — open tributes" [ref=e390] [cursor=pointer]
+                  - button "Machu Picchu, Peru — open tributes" [ref=e394] [cursor=pointer]
+                  - button "Chichén Itzá, Mexico — open tributes" [ref=e398] [cursor=pointer]
+                  - button "Roman Colosseum, Italy — open tributes" [ref=e402] [cursor=pointer]
+                  - button "Taj Mahal, India — open tributes" [ref=e406] [cursor=pointer]
+              - generic: Click any place to leave a tribute from that location
+              - generic [ref=e410]:
+                - generic [ref=e413]: project
+                - generic [ref=e416]: city
+                - generic [ref=e419]: wonder
+          - link "Add your voice to the map" [ref=e33] [cursor=pointer]:
+            - /url: /compose
+            - button "Add your voice to the map" [ref=e34]
+        - generic [ref=e36]:
+          - heading "Share your memories" [level=2] [ref=e37]
+          - paragraph [ref=e38]: Help us gather the stories, the quiet moments, and the legacy he left behind.
+          - link "Enter the Tribute Wall" [ref=e40] [cursor=pointer]:
+            - /url: /wall
+            - button "Enter the Tribute Wall" [ref=e41]
+    - contentinfo [ref=e42]:
+      - paragraph [ref=e44]: In loving memory.
+  - region "Notifications (F8)":
+    - list

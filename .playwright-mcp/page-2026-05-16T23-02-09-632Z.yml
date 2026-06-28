@@ -1,0 +1,49 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Luis Ventura" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e7]:
+          - link "His Reach" [ref=e8] [cursor=pointer]:
+            - /url: /#reach
+          - link "Tributes" [ref=e9] [cursor=pointer]:
+            - /url: /wall
+          - link "Sign In" [ref=e10] [cursor=pointer]:
+            - /url: /sign-in
+    - main [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e14]:
+          - generic [ref=e15]:
+            - heading "Luis Ventura" [level=1] [ref=e16]
+            - paragraph [ref=e17]: 1965 — 2026
+          - paragraph [ref=e19]: An extraordinary engineer, a visionary leader, and a generous soul. He built the foundations we stand on and lifted everyone around him.
+          - generic [ref=e20]:
+            - link "Leave a Tribute" [ref=e21] [cursor=pointer]:
+              - /url: /compose
+              - button "Leave a Tribute" [ref=e22]
+            - link "Read Tributes" [ref=e23] [cursor=pointer]:
+              - /url: /wall
+              - button "Read Tributes" [ref=e24]
+            - link "Explore His Reach" [ref=e25] [cursor=pointer]:
+              - /url: "#reach"
+              - button "Explore His Reach" [ref=e26]
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - generic [ref=e30]: The Reach of His Work
+            - heading "A quiet thread through countless lives" [level=2] [ref=e31]
+            - paragraph [ref=e32]: Every employee at LCPtracker and Cikume, and millions of families connected to the projects, streets, and construction sites his software helped run (his code), were touched by him. He also believed the world was meant to be seen — and he saw all seven wonders of it with his own eyes. Click any point below to explore.
+          - generic [ref=e33]: Loading the network of his impact...
+          - link "Add your voice to the map" [ref=e35] [cursor=pointer]:
+            - /url: /compose
+            - button "Add your voice to the map" [ref=e36]
+        - generic [ref=e38]:
+          - heading "Share your memories" [level=2] [ref=e39]
+          - paragraph [ref=e40]: Help us gather the stories, the quiet moments, and the legacy he left behind.
+          - link "Enter the Tribute Wall" [ref=e42] [cursor=pointer]:
+            - /url: /wall
+            - button "Enter the Tribute Wall" [ref=e43]
+    - contentinfo [ref=e44]:
+      - paragraph [ref=e46]: In loving memory.
+  - region "Notifications (F8)":
+    - list

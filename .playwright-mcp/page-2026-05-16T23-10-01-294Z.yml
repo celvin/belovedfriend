@@ -1,0 +1,44 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Luis Ventura" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - button "Open menu" [ref=e7]:
+          - img [ref=e8]
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - heading "Luis Ventura" [level=1] [ref=e14]
+            - paragraph [ref=e15]: 1965 — 2026
+          - paragraph [ref=e17]: An extraordinary engineer, a visionary leader, and a generous soul. He built the foundations we stand on and lifted everyone around him.
+          - generic [ref=e18]:
+            - link "Leave a Tribute" [ref=e19] [cursor=pointer]:
+              - /url: /compose
+              - button "Leave a Tribute" [ref=e20]
+            - link "Read Tributes" [ref=e21] [cursor=pointer]:
+              - /url: /wall
+              - button "Read Tributes" [ref=e22]
+            - link "Explore His Reach" [ref=e23] [cursor=pointer]:
+              - /url: "#reach"
+              - button "Explore His Reach" [ref=e24]
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - generic [ref=e28]: The Reach of His Work
+            - heading "A quiet thread through countless lives" [level=2] [ref=e29]
+            - paragraph [ref=e30]: Every employee at LCPtracker and Cikume, and millions of families connected to the projects, streets, and construction sites his software helped run (his code), were touched by him. He also believed the world was meant to be seen — and he saw all seven wonders of it with his own eyes. Click any point below to explore.
+          - generic [ref=e31]: Loading the network of his impact...
+          - link "Add your voice to the map" [ref=e33] [cursor=pointer]:
+            - /url: /compose
+            - button "Add your voice to the map" [ref=e34]
+        - generic [ref=e36]:
+          - heading "Share your memories" [level=2] [ref=e37]
+          - paragraph [ref=e38]: Help us gather the stories, the quiet moments, and the legacy he left behind.
+          - link "Enter the Tribute Wall" [ref=e40] [cursor=pointer]:
+            - /url: /wall
+            - button "Enter the Tribute Wall" [ref=e41]
+    - contentinfo [ref=e42]:
+      - paragraph [ref=e44]: In loving memory.
+  - region "Notifications (F8)":
+    - list

@@ -1,0 +1,427 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API for the Luis Ventura memorial site
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: auth
+  - name: messages
+  - name: storage
+  - name: reach
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+
+  /auth/request-link:
+    post:
+      operationId: requestMagicLink
+      tags: [auth]
+      summary: Request a magic-link email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MagicLinkRequest" }
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /auth/verify:
+    post:
+      operationId: verifyMagicLink
+      tags: [auth]
+      summary: Verify a magic-link token and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VerifyTokenInput" }
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthSession" }
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the currently authenticated user
+      responses:
+        "200":
+          description: Current user (or null if not signed in)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurrentUser" }
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List all public tributes (cards and videos)
+      parameters:
+        - in: query
+          name: type
+          required: false
+          schema:
+            type: string
+            enum: [all, card, video]
+        - in: query
+          name: limit
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200 }
+      responses:
+        "200":
+          description: A list of tributes, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Message" }
+    post:
+      operationId: createMessage
+      tags: [messages]
+      summary: Post a new tribute (card or video)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MessageInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+
+  /messages/{id}:
+    get:
+      operationId: getMessage
+      tags: [messages]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: A tribute
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+    patch:
+      operationId: updateMessage
+      tags: [messages]
+      summary: Admin-only — edit any tribute
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MessageUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Admin-only — delete any tribute
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SimpleOk" }
+
+  /messages/stats:
+    get:
+      operationId: getMessageStats
+      tags: [messages]
+      summary: Aggregate counts for the public wall
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageStats" }
+
+  /reach/nodes:
+    get:
+      operationId: getReachNetwork
+      tags: [reach]
+      summary: Curated list of places, projects, and communities touched by Luis's work
+      responses:
+        "200":
+          description: Network graph nodes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReachNetwork" }
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UploadUrlInput" }
+      responses:
+        "200":
+          description: Presigned URL
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UploadUrlResponse" }
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string }
+
+    SimpleOk:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+
+    MagicLinkRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+        name: { type: string }
+
+    VerifyTokenInput:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+
+    User:
+      type: object
+      required: [id, email, role]
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        name: { type: ["string", "null"] }
+        role:
+          type: string
+          enum: [user, admin]
+        createdAt: { type: string, format: date-time }
+
+    CurrentUser:
+      type: object
+      required: [authenticated]
+      properties:
+        authenticated: { type: boolean }
+        user:
+          oneOf:
+            - { $ref: "#/components/schemas/User" }
+            - { type: "null" }
+
+    AuthSession:
+      type: object
+      required: [user]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+
+    CardDesign:
+      type: object
+      description: Customization payload for a card tribute
+      required: [template]
+      properties:
+        template:
+          type: string
+          description: Template id (e.g. "candle", "garden", "ocean", "sunset", "stars", "minimal")
+        background: { type: string, description: "CSS color or gradient" }
+        accent: { type: string }
+        font: { type: string }
+        title: { type: string }
+        body: { type: string }
+        signature: { type: string }
+        photoPath:
+          type: ["string", "null"]
+          description: Optional storage object path for an uploaded photo
+        layout:
+          type: string
+          enum: [center, top, bottom, side]
+        decoration:
+          type: string
+          description: Optional decorative motif id
+
+    MessageInput:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [card, video]
+        body:
+          type: string
+          description: Plain text body (used for card messages and video captions)
+        authorName:
+          type: string
+        relationship:
+          type: string
+          description: How the author knew Luis (colleague, friend, family, client, etc.)
+        location:
+          type: string
+        videoPath:
+          type: ["string", "null"]
+          description: Storage object path for an uploaded recorded video (required when type = video)
+        photoPath:
+          type: ["string", "null"]
+          description: Optional cover photo path
+        card:
+          oneOf:
+            - { $ref: "#/components/schemas/CardDesign" }
+            - { type: "null" }
+
+    Message:
+      type: object
+      required: [id, type, authorName, createdAt]
+      properties:
+        id: { type: integer }
+        type:
+          type: string
+          enum: [card, video]
+        body: { type: ["string", "null"] }
+        authorName: { type: string }
+        relationship: { type: ["string", "null"] }
+        location: { type: ["string", "null"] }
+        videoPath: { type: ["string", "null"] }
+        photoPath: { type: ["string", "null"] }
+        card:
+          oneOf:
+            - { $ref: "#/components/schemas/CardDesign" }
+            - { type: "null" }
+        createdAt: { type: string, format: date-time }
+
+    MessageUpdate:
+      type: object
+      description: Admin patch payload — all fields optional
+      properties:
+        body: { type: ["string", "null"] }
+        authorName: { type: string }
+        relationship: { type: ["string", "null"] }
+        location: { type: ["string", "null"] }
+
+    MessageStats:
+      type: object
+      required: [total, cards, videos, contributors, countries]
+      properties:
+        total: { type: integer }
+        cards: { type: integer }
+        videos: { type: integer }
+        contributors: { type: integer }
+        countries: { type: integer }
+        recentAuthors:
+          type: array
+          items: { type: string }
+
+    ReachNode:
+      type: object
+      required: [id, label, category]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        category:
+          type: string
+          enum: [project, city, agency, community, team, wonder]
+        weight: { type: number }
+        lat: { type: ["number", "null"] }
+        lng: { type: ["number", "null"] }
+        note: { type: ["string", "null"] }
+
+    ReachEdge:
+      type: object
+      required: [source, target]
+      properties:
+        source: { type: string }
+        target: { type: string }
+
+    ReachNetwork:
+      type: object
+      required: [nodes, edges, summary]
+      properties:
+        nodes:
+          type: array
+          items: { $ref: "#/components/schemas/ReachNode" }
+        edges:
+          type: array
+          items: { $ref: "#/components/schemas/ReachEdge" }
+        summary: { $ref: "#/components/schemas/ReachSummary" }
+
+    ReachSummary:
+      type: object
+      required: [projects, agencies, cities, livesTouched]
+      properties:
+        projects: { type: integer }
+        agencies: { type: integer }
+        cities: { type: integer }
+        livesTouched: { type: integer }
+        yearsOfService: { type: integer }
+        teamSize: { type: integer }
+        wonders: { type: integer }
+
+    UploadUrlInput:
+      type: object
+      required: [name, contentType]
+      properties:
+        name: { type: string }
+        size: { type: integer }
+        contentType: { type: string }
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL: { type: string }
+        objectPath: { type: string }

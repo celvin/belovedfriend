@@ -1,0 +1,24 @@
+[build]
+  base = "."
+  command = "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @workspace/memorial run build"
+  publish = "artifacts/memorial/dist/public"
+
+[build.environment]
+  NODE_VERSION = "22"
+  BASE_PATH = "/"
+  PORT = "4173"
+  NPM_FLAGS = "--version" # opt out of Netlify's default `npm install` — pnpm runs in `command`
+
+# Proxy all API traffic to the Railway backend so the frontend and API share an origin.
+# This keeps the JWT session cookie (HttpOnly, SameSite=lax) working without CORS config.
+[[redirects]]
+  from = "/api/*"
+  to = "https://api-production-a2bf.up.railway.app/api/:splat"
+  status = 200
+  force = true
+
+# SPA fallback — every non-asset URL serves index.html so wouter can route client-side.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
