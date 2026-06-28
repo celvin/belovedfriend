@@ -4,7 +4,6 @@ import authRouter from "./auth";
 import tenantsRouter from "./tenants";
 import messagesRouter from "./messages";
 import reachRouter from "./reach";
-import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -13,6 +12,5 @@ router.use(authRouter);
 router.use(tenantsRouter);
 router.use(messagesRouter);
 router.use(reachRouter);
-router.use(storageRouter);
 
 export default router;

@@ -13,18 +13,14 @@ import { db } from "@workspace/db";
 import { messagesTable, usersTable } from "@workspace/db/schema";
 import { getSession, requireAuth } from "../lib/session";
 import { resolveTenant, isBlocked, requireOwner, getTenantFromReq } from "../lib/tenancy";
-import { ObjectStorageService } from "../lib/objectStorage";
+import { mediaStore, keyFromObjectPath } from "../lib/blobs";
 
-const objectStorageService = new ObjectStorageService();
-
-async function tryDeleteObject(path: string | null | undefined, log: { warn: (o: object, m: string) => void }) {
-  if (!path) return;
-  try {
-    const file = await objectStorageService.getObjectEntityFile(path);
-    await file.delete({ ignoreNotFound: true });
-  } catch (err) {
-    log.warn({ err, path }, "failed to delete storage object");
-  }
+async function tryDeleteObject(objectPath: string | null | undefined, log: { warn: (o: object, m: string) => void }) {
+  if (!objectPath) return;
+  const key = keyFromObjectPath(objectPath);
+  if (!key) return;
+  try { await mediaStore().delete(key); }
+  catch (err) { log.warn({ err, objectPath }, "failed to delete blob"); }
 }
 
 const router: IRouter = Router();

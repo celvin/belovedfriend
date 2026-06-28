@@ -11,7 +11,6 @@ tags:
   - name: health
   - name: auth
   - name: messages
-  - name: storage
   - name: reach
   - name: tenants
 paths:
@@ -439,23 +438,6 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SlugAvailability" }
 
-  /storage/uploads/request-url:
-    post:
-      operationId: requestUploadUrl
-      tags: [storage]
-      summary: Request a presigned upload URL
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/UploadUrlInput" }
-      responses:
-        "200":
-          description: Presigned URL
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UploadUrlResponse" }
-
 components:
   schemas:
     HealthStatus:
@@ -728,17 +710,3 @@ components:
         slug: { type: string }
         available: { type: boolean }
 
-    UploadUrlInput:
-      type: object
-      required: [name, contentType]
-      properties:
-        name: { type: string }
-        size: { type: integer }
-        contentType: { type: string }
-
-    UploadUrlResponse:
-      type: object
-      required: [uploadURL, objectPath]
-      properties:
-        uploadURL: { type: string }
-        objectPath: { type: string }

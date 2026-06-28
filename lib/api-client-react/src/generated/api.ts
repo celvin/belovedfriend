@@ -40,8 +40,6 @@ import type {
   TenantInput,
   TenantSummary,
   TenantUpdate,
-  UploadUrlInput,
-  UploadUrlResponse,
   VerifyTokenInput
 } from './api.schemas';
 
@@ -1698,75 +1696,4 @@ export function useCheckSlugAvailability<TData = Awaited<ReturnType<typeof check
 
 
 
-
-export const getRequestUploadUrlUrl = () => {
-
-
-
-
-  return `/api/storage/uploads/request-url`
-}
-
-/**
- * @summary Request a presigned upload URL
- */
-export const requestUploadUrl = async (uploadUrlInput: UploadUrlInput, options?: RequestInit): Promise<UploadUrlResponse> => {
-
-  return customFetch<UploadUrlResponse>(getRequestUploadUrlUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      uploadUrlInput,)
-  }
-);}
-
-
-
-
-export const getRequestUploadUrlMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<UploadUrlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<UploadUrlInput>}, TContext> => {
-
-const mutationKey = ['requestUploadUrl'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestUploadUrl>>, {data: BodyType<UploadUrlInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  requestUploadUrl(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RequestUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof requestUploadUrl>>>
-    export type RequestUploadUrlMutationBody = BodyType<UploadUrlInput>
-    export type RequestUploadUrlMutationError = ErrorType<unknown>
-
-    /**
- * @summary Request a presigned upload URL
- */
-export const useRequestUploadUrl = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<UploadUrlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof requestUploadUrl>>,
-        TError,
-        {data: BodyType<UploadUrlInput>},
-        TContext
-      > => {
-      return useMutation(getRequestUploadUrlMutationOptions(options));
-    }
 

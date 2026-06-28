@@ -286,17 +286,6 @@ export interface SlugAvailability {
   available: boolean;
 }
 
-export interface UploadUrlInput {
-  name: string;
-  size?: number;
-  contentType: string;
-}
-
-export interface UploadUrlResponse {
-  uploadURL: string;
-  objectPath: string;
-}
-
 export type ListMessagesParams = {
 type?: ListMessagesType;
 /**

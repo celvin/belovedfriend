@@ -442,18 +442,3 @@ export const CheckSlugAvailabilityResponse = zod.object({
 })
 
 
-/**
- * @summary Request a presigned upload URL
- */
-export const RequestUploadUrlBody = zod.object({
-  "name": zod.string(),
-  "size": zod.number().optional(),
-  "contentType": zod.string()
-})
-
-export const RequestUploadUrlResponse = zod.object({
-  "uploadURL": zod.string(),
-  "objectPath": zod.string()
-})
-
-
