@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, gte, isNull, or, sql } from "drizzle-orm";
 import {
   RequestMagicLinkBody,
   VerifyMagicLinkBody,
@@ -23,20 +23,22 @@ const router: IRouter = Router();
 
 const MAGIC_LINK_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
-// Simple in-memory rate limiter for magic-link requests.
 const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const RATE_MAX_PER_KEY = 5;
-const rateBuckets = new Map<string, number[]>();
-function rateLimit(key: string): boolean {
-  const now = Date.now();
-  const arr = (rateBuckets.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (arr.length >= RATE_MAX_PER_KEY) {
-    rateBuckets.set(key, arr);
-    return false;
-  }
-  arr.push(now);
-  rateBuckets.set(key, arr);
-  return true;
+
+// Serverless-safe rate limit: count recent magic-link rows for this email or IP.
+async function rateLimited(email: string, ip: string): Promise<boolean> {
+  const since = new Date(Date.now() - RATE_WINDOW_MS);
+  const rows = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(magicLinksTable)
+    .where(
+      and(
+        gte(magicLinksTable.createdAt, since),
+        or(eq(magicLinksTable.email, email), eq(magicLinksTable.requestIp, ip)),
+      ),
+    );
+  return (rows[0]?.n ?? 0) >= RATE_MAX_PER_KEY;
 }
 
 function resolveBaseUrl(req: Request): string {
@@ -59,7 +61,7 @@ router.post("/auth/request-link", async (req: Request, res: Response) => {
   const ip = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim()
     || req.ip
     || "unknown";
-  if (!rateLimit(`email:${email}`) || !rateLimit(`ip:${ip}`)) {
+  if (await rateLimited(email, ip)) {
     res.status(429).json({
       error: "Too many requests. Please wait a few minutes and try again.",
     });
@@ -73,6 +75,7 @@ router.post("/auth/request-link", async (req: Request, res: Response) => {
       email,
       tokenHash: hash,
       expiresAt,
+      requestIp: ip,
     });
 
     // Best-effort: store name hint for later
