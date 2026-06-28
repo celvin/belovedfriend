@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ReachNetwork } from "@/components/reach-network";
 import { useTenantSlug } from "@/lib/tenant";
+import { Linkify } from "@/lib/linkify";
 import { useGetTenant } from "@workspace/api-client-react";
 
 export default function Home() {
@@ -149,8 +150,8 @@ export default function Home() {
                         {block.heading}
                       </h2>
                     )}
-                    <p className="text-base md:text-lg font-serif text-muted-foreground leading-relaxed">
-                      {block.body}
+                    <p className="text-base md:text-lg font-serif text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                      <Linkify text={block.body} />
                     </p>
                   </motion.div>
                 ))}

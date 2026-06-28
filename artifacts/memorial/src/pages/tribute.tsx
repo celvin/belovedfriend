@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Linkify } from "@/lib/linkify";
 import { format } from "date-fns";
 import { useTenantSlug } from "@/lib/tenant";
 import { useAuth } from "@/hooks/use-auth";
@@ -197,7 +198,7 @@ export default function Tribute() {
                 )}
 
                 <p className="text-xl md:text-2xl leading-relaxed whitespace-pre-wrap mb-12 opacity-90">
-                  {message.card.body || message.body}
+                  <Linkify text={message.card.body || message.body} linkClassName="underline underline-offset-2 hover:no-underline break-words" />
                 </p>
 
                 {message.card.signature && (
@@ -209,8 +210,8 @@ export default function Tribute() {
             </div>
           ) : message.type === "link" && message.url ? (
             <div className="p-12 md:p-24 flex flex-col items-center justify-center min-h-[30vh] gap-6">
-              <p className="font-serif text-lg text-muted-foreground italic text-center max-w-xl">
-                {message.body}
+              <p className="font-serif text-lg text-muted-foreground italic text-center max-w-xl whitespace-pre-wrap">
+                <Linkify text={message.body} />
               </p>
               <a
                 href={message.url}

@@ -119,6 +119,9 @@ export function WorldMap({
 
     const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([1, 12])
+      // Allow a little finger jitter so a tap still registers as a click
+      // (without this, d3-zoom's default clickDistance of 0 swallows touch taps).
+      .clickDistance(10)
       .on("zoom", (e) => {
         setTransform(e.transform);
       });
@@ -161,14 +164,56 @@ export function WorldMap({
   // Scale factor for point radii/strokes — keeps marks legible when zoomed
   const k = Math.max(1, transform.k);
 
-  // Handle background click for pick-a-location
-  function handleBgClick(e: React.MouseEvent<SVGRectElement>) {
-    if (!addMode || !svgRef.current) return;
-    const [px, py] = pointer(e.nativeEvent, svgRef.current);
+  // Long-press (touch "hold") support + click-suppression so a hold doesn't
+  // also fire the trailing click.
+  const longPressTimer = useRef<number | null>(null);
+  const suppressClick = useRef(false);
+
+  // Convert an SVG-local point → lat/lng (undoing zoom + projection) and emit.
+  function pickFromSvgPoint(px: number, py: number) {
     const [sx, sy] = transform.invert([px, py]);
     const ll = projection.invert?.([sx, sy]);
     if (!ll || !isFinite(ll[0]) || !isFinite(ll[1])) return;
     onPickLocation?.(ll[1], ll[0]);
+  }
+
+  // Tap / click to drop a pin.
+  function handleBgClick(e: React.MouseEvent<SVGRectElement>) {
+    if (!addMode || !svgRef.current) return;
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    const [px, py] = pointer(e.nativeEvent, svgRef.current);
+    pickFromSvgPoint(px, py);
+  }
+
+  // Press-and-hold to drop a pin (intuitive on touch, where a drag pans).
+  function handleBgPointerDown(e: React.PointerEvent<SVGRectElement>) {
+    if (!addMode || !svgRef.current) return;
+    const [px, py] = pointer(e.nativeEvent, svgRef.current);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const cancel = () => {
+      if (longPressTimer.current != null) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", cancel);
+      window.removeEventListener("pointercancel", cancel);
+    };
+    const onMove = (ev: PointerEvent) => {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 10) cancel();
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", cancel);
+    window.addEventListener("pointercancel", cancel);
+    longPressTimer.current = window.setTimeout(() => {
+      pickFromSvgPoint(px, py);
+      suppressClick.current = true; // swallow the click that follows release
+      cancel();
+    }, 450);
   }
 
   // Zoom control helpers
@@ -186,7 +231,7 @@ export function WorldMap({
   }
 
   return (
-    <div className="absolute inset-0" style={{ position: "relative" }}>
+    <div className="absolute inset-0">
       <svg
         ref={svgRef}
         className="absolute inset-0 w-full h-full"
@@ -202,6 +247,7 @@ export function WorldMap({
           fill="transparent"
           style={{ cursor: addMode ? "crosshair" : "inherit" }}
           onClick={handleBgClick}
+          onPointerDown={handleBgPointerDown}
         />
 
         {/* Graticule-like subtle equator (outside the zoom group — static) */}
@@ -265,7 +311,7 @@ export function WorldMap({
 
           {/* Points */}
           {isReady && (
-            <g>
+            <g style={{ pointerEvents: addMode ? "none" : undefined }}>
               {plotted.map((p) => {
                 const color = categoryColor(p.node.category);
                 const isSel = selectedId === p.node.id;

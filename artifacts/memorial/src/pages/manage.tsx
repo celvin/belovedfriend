@@ -233,11 +233,57 @@ export default function Manage() {
     setShowPageSettings(true);
   }
 
+  // Has the page-settings form diverged from what's persisted?
+  function isPageSettingsDirty(): boolean {
+    if (!pageSettings) return false;
+    const persisted = buildDefaultSettings((tenant?.pageConfig ?? {}) as Record<string, unknown>);
+    return JSON.stringify(buildPageConfig(pageSettings)) !== JSON.stringify(buildPageConfig(persisted));
+  }
+
   function handleTogglePageSettings() {
     if (showPageSettings) {
+      if (isPageSettingsDirty() && !confirm("You have unsaved page settings. Discard your changes?")) return;
+      // Reset to persisted so re-opening starts clean.
+      setPageSettings(buildDefaultSettings((tenant?.pageConfig ?? {}) as Record<string, unknown>));
+      setPageSettingsError(null);
+      setPageSettingsSaved(false);
       setShowPageSettings(false);
     } else {
       handleOpenPageSettings();
+    }
+  }
+
+  // Has the page-details (meta) form diverged from what's persisted?
+  function isMetaDirty(): boolean {
+    if (!tenant) return false;
+    return (
+      metaFriendName !== (tenant.friendName ?? "") ||
+      metaTagline !== (tenant.tagline ?? "") ||
+      metaBirthYear !== (tenant.birthYear?.toString() ?? "") ||
+      metaDeathYear !== (tenant.deathYear?.toString() ?? "")
+    );
+  }
+
+  function handleToggleEditMeta() {
+    if (showEditMeta) {
+      if (isMetaDirty() && !confirm("You have unsaved changes to the page details. Discard them?")) return;
+      setShowEditMeta(false);
+    } else {
+      handleOpenEditMeta();
+    }
+  }
+
+  function handleToggleAddLink() {
+    if (showAddLink) {
+      const dirty = !!(linkTitle.trim() || linkUrl.trim() || linkNote.trim());
+      if (dirty && !confirm("Discard this unsaved link?")) return;
+      setLinkTitle("");
+      setLinkUrl("");
+      setLinkNote("");
+      setLinkError(null);
+      setShowAddLink(false);
+    } else {
+      setShowAddLink(true);
     }
   }
 
@@ -529,7 +575,7 @@ export default function Manage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10 space-y-10">
+    <div className="max-w-3xl lg:max-w-6xl mx-auto px-4 py-10 space-y-8">
 
       {/* Header */}
       <div className="space-y-2">
@@ -562,12 +608,18 @@ export default function Manage() {
         </div>
       )}
 
+      {/* Responsive layout: editing forms (wide) + moderation lists (narrow) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+
+      {/* ── Left column: editing ── */}
+      <div className="lg:col-span-2 space-y-8">
+
       {/* Edit tenant meta */}
       <section className="bg-card border border-border/40 rounded-xl overflow-hidden">
         <button
           type="button"
           className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition"
-          onClick={() => (showEditMeta ? setShowEditMeta(false) : handleOpenEditMeta())}
+          onClick={handleToggleEditMeta}
         >
           <span className="font-serif text-lg">Edit page details</span>
           {showEditMeta ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -987,7 +1039,7 @@ export default function Manage() {
         <button
           type="button"
           className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition"
-          onClick={() => setShowAddLink((v) => !v)}
+          onClick={handleToggleAddLink}
         >
           <span className="font-serif text-lg flex items-center gap-2">
             <Plus size={16} /> Add a link
@@ -1036,6 +1088,10 @@ export default function Manage() {
           </form>
         )}
       </section>
+
+      </div>
+      {/* ── Right column: moderation ── */}
+      <div className="lg:col-span-1 space-y-8">
 
       {/* Tributes list */}
       <section className="bg-card border border-border/40 rounded-xl overflow-hidden p-5 space-y-4">
@@ -1152,6 +1208,9 @@ export default function Manage() {
           </ul>
         )}
       </section>
+
+      </div>
+      </div>
     </div>
   );
 }
