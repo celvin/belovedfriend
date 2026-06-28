@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { VideoRecorder } from "@/components/video-recorder";
 import { CardDesigner } from "@/components/card-designer";
-import { Video, PenTool } from "lucide-react";
+import { Video, PenTool, MapPin } from "lucide-react";
 import { useTenantSlug } from "@/lib/tenant";
 
 export default function Compose() {
   const slug = useTenantSlug() ?? "";
   const { isAuthenticated, isLoading } = useAuth();
+  const search = useSearch();
+  const nodeParam = new URLSearchParams(search).get("node");
+  const nodeId = nodeParam && /^\d+$/.test(nodeParam) ? parseInt(nodeParam, 10) : undefined;
   const [mode, setMode] = useState<"select" | "video" | "card">("select");
 
   if (isLoading) {
@@ -49,6 +52,12 @@ export default function Compose() {
             className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-4xl mx-auto text-center"
           >
             <h1 className="text-4xl md:text-5xl font-serif mb-6 text-foreground">Leave a Tribute</h1>
+            {nodeId != null && (
+              <div className="flex items-center justify-center gap-2 mb-4 text-sm text-muted-foreground">
+                <MapPin size={14} className="text-primary/70 shrink-0" />
+                <span>Attaching to a place on the map (node #{nodeId})</span>
+              </div>
+            )}
             <p className="text-lg text-muted-foreground font-serif italic mb-16 max-w-2xl">
               Choose how you'd like to share your memory. You can record a quiet video message or carefully design a condolence card.
             </p>
@@ -95,7 +104,7 @@ export default function Compose() {
               <Button variant="ghost" onClick={() => setMode("select")} className="mb-8 font-serif text-muted-foreground hover:text-foreground">
                 ← Back
               </Button>
-              <VideoRecorder slug={slug} />
+              <VideoRecorder slug={slug} nodeId={nodeId} />
             </div>
           </motion.div>
         ) : (
@@ -110,7 +119,7 @@ export default function Compose() {
               <Button variant="ghost" onClick={() => setMode("select")} className="mb-8 font-serif text-muted-foreground hover:text-foreground">
                 ← Back
               </Button>
-              <CardDesigner slug={slug} />
+              <CardDesigner slug={slug} nodeId={nodeId} />
             </div>
           </motion.div>
         )}

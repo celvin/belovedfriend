@@ -32,9 +32,10 @@ const LAYOUTS: { id: CardDesignLayout, name: string }[] = [
 
 interface Props {
   slug: string;
+  nodeId?: number;
 }
 
-export function CardDesigner({ slug }: Props) {
+export function CardDesigner({ slug, nodeId }: Props) {
   const [template, setTemplate] = useState<keyof typeof TEMPLATES>("minimal");
   const [font, setFont] = useState("serif");
   const [layout, setLayout] = useState<CardDesignLayout>("center");
@@ -92,7 +93,8 @@ export function CardDesigner({ slug }: Props) {
             signature,
             layout,
             photoPath: objectPath
-          }
+          },
+          ...(nodeId != null ? { nodeId } : {}),
         }
       });
 

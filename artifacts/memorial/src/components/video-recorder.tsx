@@ -12,9 +12,10 @@ const MAX_VIDEO_BYTES = 18 * 1024 * 1024; // 18 MB
 
 interface Props {
   slug: string;
+  nodeId?: number;
 }
 
-export function VideoRecorder({ slug }: Props) {
+export function VideoRecorder({ slug, nodeId }: Props) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -128,7 +129,8 @@ export function VideoRecorder({ slug }: Props) {
           videoPath: objectPath,
           authorName,
           relationship,
-          location: locationInput
+          location: locationInput,
+          ...(nodeId != null ? { nodeId } : {}),
         }
       });
 
