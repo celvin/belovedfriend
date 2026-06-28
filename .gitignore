@@ -53,3 +53,7 @@ secret.txt
 
 # superpowers SDD scratch (ledger, briefs, reports)
 .superpowers/
+
+# Playwright MCP session artifacts (transient)
+.playwright-mcp/
+/map-*.png
