@@ -194,6 +194,7 @@ function AddEdgeForm({ slug, nodes, onClose }: AddEdgeFormProps) {
 interface AddPanelProps {
   slug: string;
   nodes: ReachNode[];
+  mode: AddPanelMode;
   onClose: () => void;
   presetLat?: number;
   presetLng?: number;
@@ -201,11 +202,8 @@ interface AddPanelProps {
   onModeChange?: (mode: AddPanelMode) => void;
 }
 
-function AddPanel({ slug, nodes, onClose, presetLat, presetLng, onClearLocation, onModeChange }: AddPanelProps) {
-  const [mode, setMode] = useState<AddPanelMode>("node");
-
+function AddPanel({ slug, nodes, mode, onClose, presetLat, presetLng, onClearLocation, onModeChange }: AddPanelProps) {
   function handleModeChange(m: AddPanelMode) {
-    setMode(m);
     onModeChange?.(m);
   }
 
@@ -610,6 +608,10 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
   // Build unique categories present in the data
   const presentCategories = Array.from(new Set(data.nodes.map((n) => n.category)));
 
+  // "Placing" = adding a place and no spot chosen yet → keep the map visible
+  // and clickable (instead of covering it with the form panel).
+  const pickingPlace = showAddNode && addPanelMode === "node" && !pickedLocation;
+
   return (
     <div className="space-y-8">
       {/* Summary callouts from page_config.reachSummary (fallback to counts) */}
@@ -778,7 +780,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
             selectedId={selectedLive?.id ?? null}
             hoveredId={hovered}
             compact={isMobile}
-            addMode={showAddNode && addPanelMode === "node"}
+            addMode={pickingPlace}
             onHover={setHovered}
             onSelect={(id) => {
               const p = mapPlotted.find((m) => m.node.id === id);
@@ -842,12 +844,49 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
           )}
         </AnimatePresence>
 
-        {/* Add panel (place or connection) */}
+        {/* Slim instruction bar while choosing a spot — keeps the map clickable */}
         <AnimatePresence>
-          {showAddNode && (
+          {pickingPlace && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 px-4 w-full max-w-md"
+            >
+              <div className="flex items-center gap-3 bg-card/95 backdrop-blur-md border border-primary/30 rounded-full shadow-lg px-4 py-2">
+                <span className="text-xs text-foreground text-center">
+                  Tap the map — or press &amp; hold — to drop a pin
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddNode(false);
+                    setPickedLocation(null);
+                    setAddPanelMode("node");
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground shrink-0"
+                >
+                  Cancel
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddPanelMode("edge")}
+                className="text-[11px] text-primary hover:underline"
+              >
+                or connect two existing places →
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Add panel (place form once a spot is chosen, or connect-two form) */}
+        <AnimatePresence>
+          {showAddNode && !pickingPlace && (
             <AddPanel
               slug={slug}
               nodes={data.nodes}
+              mode={addPanelMode}
               onClose={() => {
                 setShowAddNode(false);
                 setPickedLocation(null);
