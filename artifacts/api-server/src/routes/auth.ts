@@ -143,6 +143,7 @@ router.post("/auth/request-link", async (req: Request, res: Response) => {
     try {
       await sendEmail({
         to: email,
+        fromName: friendName ? `In memory of ${friendName}` : undefined,
         subject,
         text:
           `${introText}\n\n` +
