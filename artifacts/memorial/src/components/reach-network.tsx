@@ -4,8 +4,10 @@ import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetReach,
+  useGetTenant,
   useCreateReachNode,
   getGetReachQueryKey,
+  getGetTenantQueryKey,
   type ReachNode,
 } from "@workspace/api-client-react";
 import { X, Play, Plus, Network, Globe, Maximize2, Minimize2 } from "lucide-react";
@@ -203,6 +205,9 @@ interface ReachNetworkProps {
 
 export function ReachNetwork({ slug }: ReachNetworkProps) {
   const { data, isLoading } = useGetReach(slug);
+  const { data: tenant } = useGetTenant(slug, {
+    query: { enabled: !!slug, queryKey: getGetTenantQueryKey(slug) },
+  });
   const { isAuthenticated } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1, h: 600 });
@@ -349,21 +354,41 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
   }
 
   const summary = data.summary as Record<string, unknown>;
+  const numFromSummary = (k: string) =>
+    typeof summary[k] === "number" ? (summary[k] as number) : undefined;
+  const derivedValue = (key?: string): string => {
+    switch (key) {
+      case "nodeCount": return String(numFromSummary("nodeCount") ?? data.nodes.length);
+      case "placeCount": return String(numFromSummary("placeCount") ?? 0);
+      case "contributorCount": return String(numFromSummary("contributorCount") ?? 0);
+      case "countryCount": return String(numFromSummary("countryCount") ?? 0);
+      default: return "";
+    }
+  };
+  // Owner-configured callouts (page_config.reachSummary), else fall back to counts.
+  const pc = (tenant?.pageConfig ?? {}) as Record<string, unknown>;
+  const reachSummaryCfg = Array.isArray(pc.reachSummary)
+    ? (pc.reachSummary as Array<{ label: string; value?: string | number; derived?: string }>)
+    : [];
+  const summaryItems =
+    reachSummaryCfg.length > 0
+      ? reachSummaryCfg.map((it) => ({
+          label: it.label,
+          value: it.value != null ? String(it.value) : derivedValue(it.derived),
+        }))
+      : [
+          { label: "Total nodes", value: String(data.nodes.length) },
+          { label: "Connections", value: String(data.edges.length) },
+        ];
 
   // Build unique categories present in the data
   const presentCategories = Array.from(new Set(data.nodes.map((n) => n.category)));
 
   return (
     <div className="space-y-8">
-      {/* Summary numbers derived from summary record */}
+      {/* Summary callouts from page_config.reachSummary (fallback to counts) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 md:gap-6 text-center">
-        {[
-          { label: "Total nodes", value: data.nodes.length.toString() },
-          { label: "Connections", value: data.edges.length.toString() },
-          ...(typeof summary.cities === "number" ? [{ label: "Cities", value: String(summary.cities) }] : []),
-          ...(typeof summary.projects === "number" ? [{ label: "Projects", value: String(summary.projects) }] : []),
-          ...(typeof summary.livesTouched === "number" ? [{ label: "Lives touched", value: (summary.livesTouched as number).toLocaleString() }] : []),
-        ].map((s, i) => (
+        {summaryItems.map((s, i) => (
           <motion.div
             key={s.label}
             initial={{ opacity: 0, y: 12 }}
