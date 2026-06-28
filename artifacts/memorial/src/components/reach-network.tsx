@@ -74,6 +74,9 @@ type AddPanelMode = "node" | "edge";
 interface AddNodeFormProps {
   slug: string;
   onClose: () => void;
+  presetLat?: number;
+  presetLng?: number;
+  onClearLocation?: () => void;
 }
 
 interface AddEdgeFormProps {
@@ -185,10 +188,19 @@ interface AddPanelProps {
   slug: string;
   nodes: ReachNode[];
   onClose: () => void;
+  presetLat?: number;
+  presetLng?: number;
+  onClearLocation?: () => void;
+  onModeChange?: (mode: AddPanelMode) => void;
 }
 
-function AddPanel({ slug, nodes, onClose }: AddPanelProps) {
+function AddPanel({ slug, nodes, onClose, presetLat, presetLng, onClearLocation, onModeChange }: AddPanelProps) {
   const [mode, setMode] = useState<AddPanelMode>("node");
+
+  function handleModeChange(m: AddPanelMode) {
+    setMode(m);
+    onModeChange?.(m);
+  }
 
   return (
     <motion.div
@@ -209,7 +221,7 @@ function AddPanel({ slug, nodes, onClose }: AddPanelProps) {
         <div className="inline-flex items-center w-full p-1 mb-4 rounded-full border border-border/40 bg-muted/30">
           <button
             type="button"
-            onClick={() => setMode("node")}
+            onClick={() => handleModeChange("node")}
             className={`flex-1 py-1 text-xs font-medium tracking-wide rounded-full transition ${
               mode === "node"
                 ? "bg-primary text-primary-foreground shadow-sm"
@@ -220,7 +232,7 @@ function AddPanel({ slug, nodes, onClose }: AddPanelProps) {
           </button>
           <button
             type="button"
-            onClick={() => setMode("edge")}
+            onClick={() => handleModeChange("edge")}
             className={`flex-1 py-1 text-xs font-medium tracking-wide rounded-full transition ${
               mode === "edge"
                 ? "bg-primary text-primary-foreground shadow-sm"
@@ -232,7 +244,13 @@ function AddPanel({ slug, nodes, onClose }: AddPanelProps) {
         </div>
 
         {mode === "node" ? (
-          <AddNodeFormBody slug={slug} onClose={onClose} />
+          <AddNodeFormBody
+            slug={slug}
+            onClose={onClose}
+            presetLat={presetLat}
+            presetLng={presetLng}
+            onClearLocation={onClearLocation}
+          />
         ) : (
           <AddEdgeForm slug={slug} nodes={nodes} onClose={onClose} />
         )}
@@ -241,7 +259,7 @@ function AddPanel({ slug, nodes, onClose }: AddPanelProps) {
   );
 }
 
-function AddNodeFormBody({ slug, onClose }: AddNodeFormProps) {
+function AddNodeFormBody({ slug, onClose, presetLat, presetLng, onClearLocation }: AddNodeFormProps) {
   const queryClient = useQueryClient();
   const createNode = useCreateReachNode();
   const [label, setLabel] = useState("");
@@ -251,6 +269,8 @@ function AddNodeFormBody({ slug, onClose }: AddNodeFormProps) {
   const [lng, setLng] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const hasPreset = presetLat != null && presetLng != null;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -259,19 +279,25 @@ function AddNodeFormBody({ slug, onClose }: AddNodeFormProps) {
       category,
     };
     if (note.trim()) data.note = note.trim();
-    if (lat.trim()) {
-      const n = parseFloat(lat);
-      if (isNaN(n)) { setError("Latitude must be a number"); return; }
-      data.lat = n;
-    }
-    if (lng.trim()) {
-      const n = parseFloat(lng);
-      if (isNaN(n)) { setError("Longitude must be a number"); return; }
-      data.lng = n;
+    if (hasPreset) {
+      data.lat = presetLat;
+      data.lng = presetLng;
+    } else {
+      if (lat.trim()) {
+        const n = parseFloat(lat);
+        if (isNaN(n)) { setError("Latitude must be a number"); return; }
+        data.lat = n;
+      }
+      if (lng.trim()) {
+        const n = parseFloat(lng);
+        if (isNaN(n)) { setError("Longitude must be a number"); return; }
+        data.lng = n;
+      }
     }
     createNode.mutate({ slug, data }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetReachQueryKey(slug) });
+        onClearLocation?.();
         onClose();
       },
       onError: () => setError("Failed to add node. Try again."),
@@ -306,26 +332,49 @@ function AddNodeFormBody({ slug, onClose }: AddNodeFormProps) {
           <option value="other">Other</option>
         </select>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Latitude (opt.)</label>
-          <input
-            className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-            value={lat}
-            onChange={e => setLat(e.target.value)}
-            placeholder="e.g. -23.55"
-          />
+      {hasPreset ? (
+        <div className="flex items-center justify-between rounded-md border border-border/40 bg-muted/30 px-3 py-2">
+          <div className="text-xs text-foreground">
+            📍 Location chosen on the map{" "}
+            <span className="text-muted-foreground">
+              ({presetLat!.toFixed(2)}, {presetLng!.toFixed(2)})
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClearLocation}
+            className="ml-2 text-xs text-primary hover:underline shrink-0"
+          >
+            Pick a different spot
+          </button>
         </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Longitude (opt.)</label>
-          <input
-            className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-            value={lng}
-            onChange={e => setLng(e.target.value)}
-            placeholder="e.g. -46.63"
-          />
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Latitude (opt.)</label>
+              <input
+                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                value={lat}
+                onChange={e => setLat(e.target.value)}
+                placeholder="e.g. -23.55"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Longitude (opt.)</label>
+              <input
+                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                value={lng}
+                onChange={e => setLng(e.target.value)}
+                placeholder="e.g. -46.63"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Click the map to choose where this memory belongs.
+          </p>
+        </>
+      )}
       <div>
         <label className="block text-xs text-muted-foreground mb-1">Note (opt.)</label>
         <input
@@ -382,6 +431,8 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
   );
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showAddNode, setShowAddNode] = useState(false);
+  const [addPanelMode, setAddPanelMode] = useState<AddPanelMode>("node");
+  const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const animationRef = useRef<number | null>(null);
   const nodesRef = useRef<PositionedNode[]>([]);
 
@@ -408,6 +459,13 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
       document.exitFullscreen().catch(() => {/* ignore */});
     }
   }
+
+  // Force map view when adding a new place so the map is clickable
+  useEffect(() => {
+    if (showAddNode && addPanelMode === "node") {
+      setView("map");
+    }
+  }, [showAddNode, addPanelMode]);
 
   // Initialize layout
   useEffect(() => {
@@ -603,7 +661,11 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
           {isAuthenticated ? (
             <button
               type="button"
-              onClick={() => setShowAddNode(true)}
+              onClick={() => {
+                setAddPanelMode("node");
+                setPickedLocation(null);
+                setShowAddNode(true);
+              }}
               title="Add a place to the map"
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-primary/30 bg-card/80 backdrop-blur-sm text-primary hover:bg-primary/10 transition"
             >
@@ -709,12 +771,16 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
             selectedId={selectedLive?.id ?? null}
             hoveredId={hovered}
             compact={isMobile}
+            addMode={showAddNode && addPanelMode === "node"}
             onHover={setHovered}
             onSelect={(id) => {
               const p = mapPlotted.find((m) => m.node.id === id);
               if (p) setSelected({ id, x: p.x, y: p.y, radius: p.radius });
             }}
             onLayout={setMapPlotted}
+            onPickLocation={(lat, lng) => {
+              setPickedLocation({ lat, lng });
+            }}
           />
         )}
 
@@ -770,7 +836,19 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
         {/* Add panel (place or connection) */}
         <AnimatePresence>
           {showAddNode && (
-            <AddPanel slug={slug} nodes={data.nodes} onClose={() => setShowAddNode(false)} />
+            <AddPanel
+              slug={slug}
+              nodes={data.nodes}
+              onClose={() => {
+                setShowAddNode(false);
+                setPickedLocation(null);
+                setAddPanelMode("node");
+              }}
+              presetLat={pickedLocation?.lat}
+              presetLng={pickedLocation?.lng}
+              onClearLocation={() => setPickedLocation(null)}
+              onModeChange={setAddPanelMode}
+            />
           )}
         </AnimatePresence>
       </div>
