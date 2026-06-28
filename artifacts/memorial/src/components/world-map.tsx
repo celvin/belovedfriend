@@ -134,6 +134,18 @@ export function WorldMap({
     };
   }, []);
 
+  // While placing a pin, turn off double-click/tap zoom so a tap drops a pin
+  // instead of zooming. Re-enable it when leaving placing mode.
+  useEffect(() => {
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    const sel = select(svgRef.current);
+    if (addMode) {
+      sel.on("dblclick.zoom", null);
+    } else {
+      sel.call(zoomBehaviorRef.current);
+    }
+  }, [addMode]);
+
   const projection = useMemo(() => {
     return geoNaturalEarth1()
       .scale((width / 6.4) * 1.05)
@@ -261,8 +273,13 @@ export function WorldMap({
           strokeDasharray="2 4"
         />
 
-        {/* All zoomable content */}
-        <g transform={transform.toString()}>
+        {/* All zoomable content. While placing a pin, ignore pointer events so
+            clicks on a country fall through to the background rect (which
+            converts the click position to lat/lng). */}
+        <g
+          transform={transform.toString()}
+          style={{ pointerEvents: addMode ? "none" : undefined }}
+        >
           {/* Countries */}
           {isReady && features && (
             <g>
@@ -311,7 +328,7 @@ export function WorldMap({
 
           {/* Points */}
           {isReady && (
-            <g style={{ pointerEvents: addMode ? "none" : undefined }}>
+            <g>
               {plotted.map((p) => {
                 const color = categoryColor(p.node.category);
                 const isSel = selectedId === p.node.id;
