@@ -678,6 +678,10 @@ components:
         authorName: { type: string }
         relationship: { type: ["string", "null"] }
         location: { type: ["string", "null"] }
+        card:
+          type: object
+          additionalProperties: true
+        url: { type: string }
 
     MessageStats:
       type: object

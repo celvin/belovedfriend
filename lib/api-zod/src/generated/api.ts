@@ -214,7 +214,9 @@ export const UpdateMessageBody = zod.object({
   "body": zod.string().nullish(),
   "authorName": zod.string().optional(),
   "relationship": zod.string().nullish(),
-  "location": zod.string().nullish()
+  "location": zod.string().nullish(),
+  "card": zod.record(zod.string(), zod.unknown()).optional(),
+  "url": zod.string().optional()
 }).describe('Admin patch payload — all fields optional')
 
 export const UpdateMessageResponse = zod.object({

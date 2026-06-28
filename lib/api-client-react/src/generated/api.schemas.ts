@@ -176,6 +176,8 @@ export interface Message {
   createdAt: string;
 }
 
+export type MessageUpdateCard = { [key: string]: unknown };
+
 /**
  * Admin patch payload — all fields optional
  */
@@ -187,6 +189,8 @@ export interface MessageUpdate {
   relationship?: string | null;
   /** @nullable */
   location?: string | null;
+  card?: MessageUpdateCard;
+  url?: string;
 }
 
 export interface MessageStats {
