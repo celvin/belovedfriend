@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,10 +16,106 @@ import {
   getListMyTenantsQueryKey,
   getListBlocksQueryKey,
 } from "@workspace/api-client-react";
-import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp, ShieldOff, ShieldCheck } from "lucide-react";
+import type { TenantUpdatePageConfig } from "@workspace/api-client-react";
+import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp, ShieldOff, ShieldCheck, ArrowUp, ArrowDown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenantSlug } from "@/lib/tenant";
 import { Button } from "@/components/ui/button";
+import { uploadFile } from "@/lib/upload";
+
+// ---- PageConfig local types ------------------------------------------------
+
+type SectionKey = "story" | "wall" | "reach";
+
+interface StoryBlock {
+  heading: string;
+  body: string;
+}
+
+interface ReachCallout {
+  label: string;
+  mode: "value" | "derived";
+  value: string;
+  derived: string;
+}
+
+interface PageSettingsState {
+  // theme
+  palette: string;
+  accent: string;
+  font: "serif" | "sans" | "handwritten";
+  // hero
+  heroPhotoPath: string | null;
+  showDates: boolean;
+  // story
+  storyEnabled: boolean;
+  storyBlocks: StoryBlock[];
+  // sections
+  sectionsOrder: SectionKey[];
+  sectionStory: boolean;
+  sectionWall: boolean;
+  sectionReach: boolean;
+  // reachSummary
+  reachSummary: ReachCallout[];
+  // cta
+  primaryLabel: string;
+  wallLabel: string;
+}
+
+const DERIVED_OPTIONS = [
+  { value: "nodeCount", label: "Node count" },
+  { value: "placeCount", label: "Place count" },
+  { value: "contributorCount", label: "Contributor count" },
+  { value: "countryCount", label: "Country count" },
+] as const;
+
+function buildDefaultSettings(cfg: Record<string, unknown>): PageSettingsState {
+  const themeCfg = ((cfg.theme ?? {}) as Record<string, unknown>);
+  const heroCfg = ((cfg.hero ?? {}) as Record<string, unknown>);
+  const storyCfg = ((cfg.story ?? {}) as Record<string, unknown>);
+  const sectionsCfg = ((cfg.sections ?? {}) as Record<string, unknown>);
+  const ctaCfg = ((cfg.cta ?? {}) as Record<string, unknown>);
+  const reachSummaryCfg = (cfg.reachSummary as Array<Record<string, unknown>> | undefined) ?? [];
+
+  const order = (sectionsCfg.order as string[] | undefined) ?? ["story", "wall", "reach"];
+  const validOrder: SectionKey[] = order.filter((k): k is SectionKey => ["story", "wall", "reach"].includes(k));
+  if (!validOrder.includes("story")) validOrder.push("story");
+  if (!validOrder.includes("wall")) validOrder.push("wall");
+  if (!validOrder.includes("reach")) validOrder.push("reach");
+
+  const rawBlocks = (storyCfg.blocks as Array<Record<string, unknown>> | undefined) ?? [];
+  const storyBlocks: StoryBlock[] = rawBlocks.map((b) => ({
+    heading: (b.heading as string | undefined) ?? "",
+    body: (b.body as string | undefined) ?? "",
+  }));
+
+  const reachSummary: ReachCallout[] = reachSummaryCfg.map((r) => {
+    const hasDerived = r.derived != null;
+    return {
+      label: (r.label as string | undefined) ?? "",
+      mode: hasDerived ? "derived" : "value",
+      value: r.value != null ? String(r.value) : "",
+      derived: (r.derived as string | undefined) ?? "nodeCount",
+    };
+  });
+
+  return {
+    palette: (themeCfg.palette as string | undefined) ?? "warm",
+    accent: (themeCfg.accent as string | undefined) ?? "#7a4a1f",
+    font: ((themeCfg.font as string | undefined) === "sans" ? "sans" : (themeCfg.font as string | undefined) === "handwritten" ? "handwritten" : "serif"),
+    heroPhotoPath: (heroCfg.heroPhotoPath as string | null | undefined) ?? null,
+    showDates: heroCfg.showDates !== false,
+    storyEnabled: storyCfg.enabled !== false,
+    storyBlocks,
+    sectionsOrder: validOrder,
+    sectionStory: sectionsCfg.story !== false,
+    sectionWall: sectionsCfg.wall !== false,
+    sectionReach: sectionsCfg.reach !== false,
+    reachSummary,
+    primaryLabel: (ctaCfg.primaryLabel as string | undefined) ?? "Leave a tribute",
+    wallLabel: (ctaCfg.wallLabel as string | undefined) ?? "Read tributes",
+  };
+}
 
 export default function Manage() {
   const slug = useTenantSlug() ?? "";
@@ -74,6 +170,162 @@ export default function Manage() {
 
   const createBlock = useCreateBlock();
   const deleteBlock = useDeleteBlock();
+
+  // Page settings state
+  const [showPageSettings, setShowPageSettings] = useState(false);
+  const [pageSettings, setPageSettings] = useState<PageSettingsState | null>(null);
+  const [pageSettingsError, setPageSettingsError] = useState<string | null>(null);
+  const [pageSettingsSaved, setPageSettingsSaved] = useState(false);
+  const [heroUploading, setHeroUploading] = useState(false);
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleOpenPageSettings() {
+    const cfg = (tenant?.pageConfig ?? {}) as Record<string, unknown>;
+    setPageSettings(buildDefaultSettings(cfg));
+    setPageSettingsError(null);
+    setPageSettingsSaved(false);
+    setShowPageSettings(true);
+  }
+
+  function handleTogglePageSettings() {
+    if (showPageSettings) {
+      setShowPageSettings(false);
+    } else {
+      handleOpenPageSettings();
+    }
+  }
+
+  async function handleHeroPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !pageSettings) return;
+    setHeroUploading(true);
+    setPageSettingsError(null);
+    try {
+      const objectPath = await uploadFile(file, file.type);
+      setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: objectPath } : prev);
+    } catch {
+      setPageSettingsError("Failed to upload hero photo.");
+    } finally {
+      setHeroUploading(false);
+      if (heroFileInputRef.current) heroFileInputRef.current.value = "";
+    }
+  }
+
+  function handleSavePageSettings() {
+    if (!pageSettings) return;
+    setPageSettingsError(null);
+    setPageSettingsSaved(false);
+
+    // Assemble PageConfig object matching PageConfigSchema
+    const assembled = {
+      version: 1 as const,
+      theme: {
+        palette: pageSettings.palette,
+        accent: pageSettings.accent,
+        font: pageSettings.font,
+      },
+      hero: {
+        heroPhotoPath: pageSettings.heroPhotoPath,
+        showDates: pageSettings.showDates,
+      },
+      story: {
+        enabled: pageSettings.storyEnabled,
+        blocks: pageSettings.storyBlocks.map((b) => ({ heading: b.heading, body: b.body })),
+      },
+      sections: {
+        order: pageSettings.sectionsOrder,
+        story: pageSettings.sectionStory,
+        wall: pageSettings.sectionWall,
+        reach: pageSettings.sectionReach,
+      },
+      reachSummary: pageSettings.reachSummary.map((r) => {
+        if (r.mode === "derived") {
+          return { label: r.label, derived: r.derived };
+        }
+        return { label: r.label, value: r.value };
+      }),
+      cta: {
+        primaryLabel: pageSettings.primaryLabel,
+        wallLabel: pageSettings.wallLabel,
+      },
+    };
+
+    updateTenant.mutate(
+      { slug, data: { pageConfig: assembled as TenantUpdatePageConfig } },
+      {
+        onSuccess: () => {
+          setPageSettingsSaved(true);
+          queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(slug) });
+        },
+        onError: (err: unknown) => {
+          const status = (err as { status?: number })?.status;
+          if (status === 422) {
+            setPageSettingsError("Invalid page settings — please review.");
+          } else {
+            setPageSettingsError("Failed to save page settings.");
+          }
+        },
+      },
+    );
+  }
+
+  // Section ordering helpers
+  function moveSection(index: number, direction: -1 | 1) {
+    if (!pageSettings) return;
+    const newOrder = [...pageSettings.sectionsOrder];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= newOrder.length) return;
+    [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
+    setPageSettings((prev) => prev ? { ...prev, sectionsOrder: newOrder } : prev);
+  }
+
+  // Story block helpers
+  function addStoryBlock() {
+    if (!pageSettings) return;
+    setPageSettings((prev) => prev ? {
+      ...prev,
+      storyBlocks: [...prev.storyBlocks, { heading: "", body: "" }],
+    } : prev);
+  }
+
+  function updateStoryBlock(index: number, field: "heading" | "body", val: string) {
+    if (!pageSettings) return;
+    const newBlocks = [...pageSettings.storyBlocks];
+    newBlocks[index] = { ...newBlocks[index], [field]: val };
+    setPageSettings((prev) => prev ? { ...prev, storyBlocks: newBlocks } : prev);
+  }
+
+  function removeStoryBlock(index: number) {
+    if (!pageSettings) return;
+    setPageSettings((prev) => prev ? {
+      ...prev,
+      storyBlocks: prev.storyBlocks.filter((_, i) => i !== index),
+    } : prev);
+  }
+
+  // Reach summary helpers
+  function addReachCallout() {
+    if (!pageSettings) return;
+    setPageSettings((prev) => prev ? {
+      ...prev,
+      reachSummary: [...prev.reachSummary, { label: "", mode: "derived", value: "", derived: "nodeCount" }],
+    } : prev);
+  }
+
+  function updateReachCallout(index: number, patch: Partial<ReachCallout>) {
+    if (!pageSettings) return;
+    const updated = [...pageSettings.reachSummary];
+    updated[index] = { ...updated[index], ...patch };
+    setPageSettings((prev) => prev ? { ...prev, reachSummary: updated } : prev);
+  }
+
+  function removeReachCallout(index: number) {
+    if (!pageSettings) return;
+    setPageSettings((prev) => prev ? {
+      ...prev,
+      reachSummary: prev.reachSummary.filter((_, i) => i !== index),
+    } : prev);
+  }
 
   function handleBlock(userId: number) {
     if (!confirm("Block this author? They will no longer be able to post on this page.")) return;
@@ -350,6 +602,338 @@ export default function Manage() {
               {createMessage.isPending ? "Adding…" : "Add link"}
             </Button>
           </form>
+        )}
+      </section>
+
+      {/* Page settings */}
+      <section className="bg-card border border-border/40 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition"
+          onClick={handleTogglePageSettings}
+        >
+          <span className="font-serif text-lg">Page settings</span>
+          {showPageSettings ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+
+        {showPageSettings && pageSettings && (
+          <div className="px-5 pb-5 space-y-6 border-t border-border/30 pt-4">
+
+            {/* Theme */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Theme</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Font style</label>
+                  <select
+                    className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                    value={pageSettings.font}
+                    onChange={(e) => setPageSettings((prev) => prev ? { ...prev, font: e.target.value as "serif" | "sans" | "handwritten" } : prev)}
+                  >
+                    <option value="serif">Serif</option>
+                    <option value="sans">Sans</option>
+                    <option value="handwritten">Handwritten</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Palette</label>
+                  <input
+                    className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                    value={pageSettings.palette}
+                    onChange={(e) => setPageSettings((prev) => prev ? { ...prev, palette: e.target.value } : prev)}
+                    placeholder="e.g. warm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Accent color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className="h-9 w-12 border border-border/60 rounded-md bg-background cursor-pointer p-0.5"
+                    value={pageSettings.accent}
+                    onChange={(e) => setPageSettings((prev) => prev ? { ...prev, accent: e.target.value } : prev)}
+                  />
+                  <input
+                    className="flex-1 border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                    value={pageSettings.accent}
+                    onChange={(e) => setPageSettings((prev) => prev ? { ...prev, accent: e.target.value } : prev)}
+                    placeholder="#7a4a1f"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Hero */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Hero</h3>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="rounded border border-border/60"
+                    checked={pageSettings.showDates}
+                    onChange={(e) => setPageSettings((prev) => prev ? { ...prev, showDates: e.target.checked } : prev)}
+                  />
+                  <span className="text-sm">Show birth / death years</span>
+                </label>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Hero photo</label>
+                {pageSettings.heroPhotoPath && (
+                  <div className="mb-2 flex items-center gap-3">
+                    <img
+                      src={`/api${pageSettings.heroPhotoPath}`}
+                      alt="Hero preview"
+                      className="h-16 w-16 object-cover rounded-md border border-border/40"
+                    />
+                    <button
+                      type="button"
+                      className="text-xs text-destructive hover:underline"
+                      onClick={() => setPageSettings((prev) => prev ? { ...prev, heroPhotoPath: null } : prev)}
+                    >
+                      Remove photo
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={heroFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="text-sm text-muted-foreground file:mr-2 file:rounded-full file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-medium"
+                    onChange={handleHeroPhotoChange}
+                    disabled={heroUploading}
+                  />
+                  {heroUploading && <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Story */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Story</h3>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="rounded border border-border/60"
+                  checked={pageSettings.storyEnabled}
+                  onChange={(e) => setPageSettings((prev) => prev ? { ...prev, storyEnabled: e.target.checked } : prev)}
+                />
+                <span className="text-sm">Enable story section</span>
+              </label>
+              <div className="space-y-3">
+                {pageSettings.storyBlocks.map((block, i) => (
+                  <div key={i} className="border border-border/30 rounded-lg p-3 space-y-2 bg-muted/20">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Block {i + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeStoryBlock(i)}
+                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                        aria-label="Remove block"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Heading</label>
+                      <input
+                        className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                        value={block.heading}
+                        onChange={(e) => updateStoryBlock(i, "heading", e.target.value)}
+                        placeholder="Section heading"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Body</label>
+                      <textarea
+                        className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background resize-y"
+                        rows={3}
+                        value={block.body}
+                        onChange={(e) => updateStoryBlock(i, "body", e.target.value)}
+                        placeholder="Story text…"
+                      />
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addStoryBlock}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <Plus size={12} /> Add story block
+                </button>
+              </div>
+            </div>
+
+            {/* Sections */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Sections</h3>
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="rounded border border-border/60"
+                    checked={pageSettings.sectionStory}
+                    onChange={(e) => setPageSettings((prev) => prev ? { ...prev, sectionStory: e.target.checked } : prev)}
+                  />
+                  <span className="text-sm">Show story</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="rounded border border-border/60"
+                    checked={pageSettings.sectionWall}
+                    onChange={(e) => setPageSettings((prev) => prev ? { ...prev, sectionWall: e.target.checked } : prev)}
+                  />
+                  <span className="text-sm">Show tribute wall</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="rounded border border-border/60"
+                    checked={pageSettings.sectionReach}
+                    onChange={(e) => setPageSettings((prev) => prev ? { ...prev, sectionReach: e.target.checked } : prev)}
+                  />
+                  <span className="text-sm">Show reach network</span>
+                </label>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-2">Section order</label>
+                <div className="space-y-1">
+                  {pageSettings.sectionsOrder.map((key, i) => (
+                    <div
+                      key={key}
+                      className="flex items-center gap-2 border border-border/30 rounded-md px-3 py-2 bg-muted/20 text-sm"
+                    >
+                      <span className="flex-1 capitalize">{key}</span>
+                      <button
+                        type="button"
+                        onClick={() => moveSection(i, -1)}
+                        disabled={i === 0}
+                        className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        aria-label="Move up"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveSection(i, 1)}
+                        disabled={i === pageSettings.sectionsOrder.length - 1}
+                        className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        aria-label="Move down"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Reach summary */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Reach summary callouts</h3>
+              <div className="space-y-3">
+                {pageSettings.reachSummary.map((callout, i) => (
+                  <div key={i} className="border border-border/30 rounded-lg p-3 space-y-2 bg-muted/20">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Callout {i + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeReachCallout(i)}
+                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                        aria-label="Remove callout"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Label</label>
+                      <input
+                        className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                        value={callout.label}
+                        onChange={(e) => updateReachCallout(i, { label: e.target.value })}
+                        placeholder="e.g. Memories"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Value type</label>
+                      <select
+                        className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background mb-2"
+                        value={callout.mode}
+                        onChange={(e) => updateReachCallout(i, { mode: e.target.value as "value" | "derived" })}
+                      >
+                        <option value="derived">Derived (auto-computed)</option>
+                        <option value="value">Fixed value</option>
+                      </select>
+                      {callout.mode === "derived" ? (
+                        <select
+                          className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                          value={callout.derived}
+                          onChange={(e) => updateReachCallout(i, { derived: e.target.value })}
+                        >
+                          {DERIVED_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                          value={callout.value}
+                          onChange={(e) => updateReachCallout(i, { value: e.target.value })}
+                          placeholder="e.g. 42"
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addReachCallout}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <Plus size={12} /> Add callout
+                </button>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Call-to-action labels</h3>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Primary button label</label>
+                <input
+                  className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                  value={pageSettings.primaryLabel}
+                  onChange={(e) => setPageSettings((prev) => prev ? { ...prev, primaryLabel: e.target.value } : prev)}
+                  placeholder="Leave a tribute"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Wall button label</label>
+                <input
+                  className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                  value={pageSettings.wallLabel}
+                  onChange={(e) => setPageSettings((prev) => prev ? { ...prev, wallLabel: e.target.value } : prev)}
+                  placeholder="Read tributes"
+                />
+              </div>
+            </div>
+
+            {/* Save */}
+            {pageSettingsError && <p className="text-xs text-destructive">{pageSettingsError}</p>}
+            {pageSettingsSaved && <p className="text-xs text-green-600">Page settings saved.</p>}
+            <Button
+              type="button"
+              onClick={handleSavePageSettings}
+              disabled={updateTenant.isPending || heroUploading}
+              className="rounded-full font-serif"
+            >
+              {updateTenant.isPending ? "Saving…" : "Save page settings"}
+            </Button>
+          </div>
         )}
       </section>
 

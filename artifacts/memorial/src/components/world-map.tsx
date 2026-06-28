@@ -3,7 +3,9 @@ import { geoNaturalEarth1, geoPath, type GeoPermissibleObjects } from "d3-geo";
 import { feature } from "topojson-client";
 import type { ReachNode } from "@workspace/api-client-react";
 
-const WORLD_TOPOJSON_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+// Served from the app's own origin (artifacts/memorial/public/) — no external
+// CDN dependency, works offline, and avoids CSP/CDN-availability risk.
+const WORLD_TOPOJSON_URL = "/countries-110m.json";
 
 type AnyFeature = { type: "Feature"; geometry: unknown; properties?: unknown };
 
