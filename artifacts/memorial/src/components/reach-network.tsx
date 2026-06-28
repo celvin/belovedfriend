@@ -6,6 +6,7 @@ import {
   useGetReach,
   useGetTenant,
   useCreateReachNode,
+  useCreateReachEdge,
   getGetReachQueryKey,
   getGetTenantQueryKey,
   type ReachNode,
@@ -64,12 +65,179 @@ function radiusFor(node: ReachNode): number {
 
 type ViewMode = "constellation" | "map";
 
+type AddPanelMode = "node" | "edge";
+
 interface AddNodeFormProps {
   slug: string;
   onClose: () => void;
 }
 
-function AddNodeForm({ slug, onClose }: AddNodeFormProps) {
+interface AddEdgeFormProps {
+  slug: string;
+  nodes: ReachNode[];
+  onClose: () => void;
+}
+
+function AddEdgeForm({ slug, nodes, onClose }: AddEdgeFormProps) {
+  const queryClient = useQueryClient();
+  const createEdge = useCreateReachEdge();
+  const [sourceId, setSourceId] = useState<string>("");
+  const [targetId, setTargetId] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+
+  const sameNode = sourceId !== "" && targetId !== "" && sourceId === targetId;
+  const canSubmit = sourceId !== "" && targetId !== "" && !sameNode && !createEdge.isPending;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (sameNode) {
+      setError("Source and target must be different nodes.");
+      return;
+    }
+    createEdge.mutate(
+      {
+        slug,
+        data: {
+          sourceNodeId: Number(sourceId),
+          targetNodeId: Number(targetId),
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetReachQueryKey(slug) });
+          onClose();
+        },
+        onError: (err: unknown) => {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : "Failed to add connection. The nodes may not belong to this map, or the connection already exists.";
+          setError(msg);
+        },
+      },
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div>
+        <label className="block text-xs text-muted-foreground mb-1">From (source)</label>
+        <select
+          className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+          value={sourceId}
+          onChange={(e) => setSourceId(e.target.value)}
+          required
+        >
+          <option value="">Select a place…</option>
+          {nodes.map((n) => (
+            <option key={n.id} value={String(n.id)}>
+              {n.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs text-muted-foreground mb-1">To (target)</label>
+        <select
+          className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+          value={targetId}
+          onChange={(e) => setTargetId(e.target.value)}
+          required
+        >
+          <option value="">Select a place…</option>
+          {nodes.map((n) => (
+            <option key={n.id} value={String(n.id)}>
+              {n.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {sameNode && (
+        <p className="text-xs text-muted-foreground">Choose two different places to connect.</p>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <div className="flex gap-2 pt-1">
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="flex-1 bg-primary text-primary-foreground rounded-full py-2 text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
+        >
+          {createEdge.isPending ? "Connecting…" : "Connect"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 rounded-full py-2 text-sm border border-border/40 hover:bg-muted/40 transition"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+interface AddPanelProps {
+  slug: string;
+  nodes: ReachNode[];
+  onClose: () => void;
+}
+
+function AddPanel({ slug, nodes, onClose }: AddPanelProps) {
+  const [mode, setMode] = useState<AddPanelMode>("node");
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+    >
+      <div className="bg-card border border-border/60 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif text-lg">Add to the map</h3>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Mode switch */}
+        <div className="inline-flex items-center w-full p-1 mb-4 rounded-full border border-border/40 bg-muted/30">
+          <button
+            type="button"
+            onClick={() => setMode("node")}
+            className={`flex-1 py-1 text-xs font-medium tracking-wide rounded-full transition ${
+              mode === "node"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Add a place
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("edge")}
+            className={`flex-1 py-1 text-xs font-medium tracking-wide rounded-full transition ${
+              mode === "edge"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Connect two
+          </button>
+        </div>
+
+        {mode === "node" ? (
+          <AddNodeFormBody slug={slug} onClose={onClose} />
+        ) : (
+          <AddEdgeForm slug={slug} nodes={nodes} onClose={onClose} />
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+function AddNodeFormBody({ slug, onClose }: AddNodeFormProps) {
   const queryClient = useQueryClient();
   const createNode = useCreateReachNode();
   const [label, setLabel] = useState("");
@@ -107,95 +275,80 @@ function AddNodeForm({ slug, onClose }: AddNodeFormProps) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm"
-    >
-      <div className="bg-card border border-border/60 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-serif text-lg">Add to the map</h3>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded">
-            <X size={16} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">Place or area name</label>
-            <input
-              className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-              value={label}
-              onChange={e => setLabel(e.target.value)}
-              placeholder="e.g. São Paulo, Brazil"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">Category</label>
-            <select
-              className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-            >
-              <option value="city">City</option>
-              <option value="project">Project area</option>
-              <option value="community">Community</option>
-              <option value="team">Team</option>
-              <option value="agency">Agency</option>
-              <option value="wonder">Wonder of the World</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Latitude (opt.)</label>
-              <input
-                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-                value={lat}
-                onChange={e => setLat(e.target.value)}
-                placeholder="e.g. -23.55"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Longitude (opt.)</label>
-              <input
-                className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-                value={lng}
-                onChange={e => setLng(e.target.value)}
-                placeholder="e.g. -46.63"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">Note (opt.)</label>
-            <input
-              className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              placeholder="A brief description"
-            />
-          </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
-          <div className="flex gap-2 pt-1">
-            <button
-              type="submit"
-              disabled={createNode.isPending || !label.trim()}
-              className="flex-1 bg-primary text-primary-foreground rounded-full py-2 text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
-            >
-              {createNode.isPending ? "Adding…" : "Add to map"}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 rounded-full py-2 text-sm border border-border/40 hover:bg-muted/40 transition"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div>
+        <label className="block text-xs text-muted-foreground mb-1">Place or area name</label>
+        <input
+          className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+          value={label}
+          onChange={e => setLabel(e.target.value)}
+          placeholder="e.g. São Paulo, Brazil"
+          required
+        />
       </div>
-    </motion.div>
+      <div>
+        <label className="block text-xs text-muted-foreground mb-1">Category</label>
+        <select
+          className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+        >
+          <option value="city">City</option>
+          <option value="project">Project area</option>
+          <option value="community">Community</option>
+          <option value="team">Team</option>
+          <option value="agency">Agency</option>
+          <option value="wonder">Wonder of the World</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Latitude (opt.)</label>
+          <input
+            className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+            value={lat}
+            onChange={e => setLat(e.target.value)}
+            placeholder="e.g. -23.55"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Longitude (opt.)</label>
+          <input
+            className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+            value={lng}
+            onChange={e => setLng(e.target.value)}
+            placeholder="e.g. -46.63"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs text-muted-foreground mb-1">Note (opt.)</label>
+        <input
+          className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder="A brief description"
+        />
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <div className="flex gap-2 pt-1">
+        <button
+          type="submit"
+          disabled={createNode.isPending || !label.trim()}
+          className="flex-1 bg-primary text-primary-foreground rounded-full py-2 text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
+        >
+          {createNode.isPending ? "Adding…" : "Add to map"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 rounded-full py-2 text-sm border border-border/40 hover:bg-muted/40 transition"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -605,10 +758,10 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
           )}
         </AnimatePresence>
 
-        {/* Add node form */}
+        {/* Add panel (place or connection) */}
         <AnimatePresence>
           {showAddNode && (
-            <AddNodeForm slug={slug} onClose={() => setShowAddNode(false)} />
+            <AddPanel slug={slug} nodes={data.nodes} onClose={() => setShowAddNode(false)} />
           )}
         </AnimatePresence>
       </div>
