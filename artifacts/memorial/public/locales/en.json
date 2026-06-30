@@ -11,5 +11,6 @@
   "nav.openMenu": "Open menu",
   "nav.closeMenu": "Close menu",
   "nav.language": "Language",
-  "footer.inLovingMemory": "In loving memory."
+  "footer.inLovingMemory": "In loving memory.",
+  "manage.defaultLanguage": "Default language"
 }

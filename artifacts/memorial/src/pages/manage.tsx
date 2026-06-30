@@ -21,6 +21,8 @@ import type { TenantUpdatePageConfig } from "@workspace/api-client-react";
 import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp, ShieldOff, ShieldCheck, ArrowUp, ArrowDown, Camera, Eye, EyeOff, Clapperboard } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenantSlug } from "@/lib/tenant";
+import { type Lang, isLang } from "@/lib/i18n";
+import { useT } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import { uploadFile } from "@/lib/upload";
 
@@ -45,6 +47,8 @@ interface PageSettingsState {
   palette: string;
   accent: string;
   font: "serif" | "sans" | "handwritten";
+  // locale
+  defaultLanguage: Lang;
   // hero
   heroPhotoPath: string | null;
   showDates: boolean;
@@ -102,6 +106,7 @@ function buildPageConfig(settings: PageSettingsState): TenantUpdatePageConfig {
       primaryLabel: settings.primaryLabel,
       wallLabel: settings.wallLabel,
     },
+    defaultLanguage: settings.defaultLanguage,
   };
 }
 
@@ -150,10 +155,12 @@ function buildDefaultSettings(cfg: Record<string, unknown>): PageSettingsState {
     reachSummary,
     primaryLabel: (ctaCfg.primaryLabel as string | undefined) ?? "Leave a tribute",
     wallLabel: (ctaCfg.wallLabel as string | undefined) ?? "Read tributes",
+    defaultLanguage: isLang(cfg.defaultLanguage) ? cfg.defaultLanguage : "en",
   };
 }
 
 export default function Manage() {
+  const { t } = useT();
   const slug = useTenantSlug() ?? "";
   const { isAdmin, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
@@ -857,6 +864,22 @@ export default function Manage() {
                     onChange={(e) => setPageSettings((prev) => prev ? { ...prev, palette: e.target.value } : prev)}
                     placeholder="e.g. warm"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">{t("manage.defaultLanguage")}</label>
+                  <select
+                    className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
+                    value={pageSettings.defaultLanguage}
+                    onChange={(e) =>
+                      setPageSettings((prev) =>
+                        prev ? { ...prev, defaultLanguage: e.target.value as Lang } : prev,
+                      )
+                    }
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                  </select>
                 </div>
               </div>
               <div>
