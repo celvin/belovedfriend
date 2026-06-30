@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Square, RefreshCcw } from "lucide-react";
 import { MessageInputType } from "@workspace/api-client-react";
 import { uploadFile } from "@/lib/upload";
+import { useT } from "@/components/language-provider";
 
 const MAX_VIDEO_BYTES = 18 * 1024 * 1024; // 18 MB
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function VideoRecorder({ slug, nodeId }: Props) {
+  const { t } = useT();
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -45,7 +47,7 @@ export function VideoRecorder({ slug, nodeId }: Props) {
         videoRef.current.srcObject = mediaStream;
       }
     } catch {
-      toast({ variant: "destructive", title: "Camera Error", description: "Could not access camera. Please check permissions." });
+      toast({ variant: "destructive", title: t("recorder.cameraErrorTitle"), description: t("recorder.cameraErrorDesc") });
     }
   };
 
@@ -53,7 +55,7 @@ export function VideoRecorder({ slug, nodeId }: Props) {
     startCamera();
     return () => {
       if (stream) {
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach(track => track.stop());
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,7 +102,7 @@ export function VideoRecorder({ slug, nodeId }: Props) {
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
       if (stream) {
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach(track => track.stop());
       }
     }
   };
@@ -116,7 +118,7 @@ export function VideoRecorder({ slug, nodeId }: Props) {
     if (busy) return;
 
     if (recordedBlob.size > MAX_VIDEO_BYTES) {
-      toast({ variant: "destructive", title: "File too large", description: "Video must be under 18 MB. Please re-record a shorter clip." });
+      toast({ variant: "destructive", title: t("recorder.fileTooLargeTitle"), description: t("recorder.fileTooLargeDesc") });
       return;
     }
 
@@ -138,11 +140,11 @@ export function VideoRecorder({ slug, nodeId }: Props) {
         }
       });
 
-      toast({ title: "Tribute saved", description: "Your video has been added to the wall." });
+      toast({ title: t("recorder.toastSavedTitle"), description: t("recorder.toastSavedDesc") });
       setLocation(`/${slug}/wall`);
 
     } catch {
-      toast({ variant: "destructive", title: "Upload Failed", description: "There was an error saving your tribute." });
+      toast({ variant: "destructive", title: t("recorder.uploadFailedTitle"), description: t("recorder.uploadFailedDesc") });
     } finally {
       setBusy(false);
     }
@@ -160,8 +162,8 @@ export function VideoRecorder({ slug, nodeId }: Props) {
     <div className="max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16">
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-serif mb-2">Record Video</h2>
-          <p className="text-muted-foreground font-serif italic">A quiet space to speak from the heart.</p>
+          <h2 className="text-3xl font-serif mb-2">{t("recorder.heading")}</h2>
+          <p className="text-muted-foreground font-serif italic">{t("recorder.subheading")}</p>
         </div>
 
         <div className="aspect-video bg-black rounded-2xl overflow-hidden relative shadow-lg ring-1 ring-border/20">
@@ -177,7 +179,7 @@ export function VideoRecorder({ slug, nodeId }: Props) {
           {!recordedBlob && (
             <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-4 z-10">
               <div className="absolute left-6 text-white font-mono text-sm bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">
-                {formatTime(recordingTime)} / 3:00
+                {formatTime(recordingTime)} {t("recorder.maxDuration")}
               </div>
 
               {!isRecording ? (
@@ -206,7 +208,7 @@ export function VideoRecorder({ slug, nodeId }: Props) {
         {recordedBlob && (
           <Button variant="outline" onClick={resetRecording} className="w-full font-serif" disabled={isSaving}>
             <RefreshCcw className="w-4 h-4 mr-2" />
-            Re-record
+            {t("recorder.reRecord")}
           </Button>
         )}
       </div>
@@ -214,29 +216,29 @@ export function VideoRecorder({ slug, nodeId }: Props) {
       <div className="space-y-8 py-4">
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground/80">Your Name <span className="text-destructive">*</span></label>
+            <label className="text-sm font-medium text-foreground/80">{t("recorder.yourNameLabel")} <span className="text-destructive">*</span></label>
             <Input
               value={authorName}
               onChange={e => setAuthorName(e.target.value)}
-              placeholder="How would you like to be remembered?"
+              placeholder={t("recorder.authorNamePlaceholder")}
               className="bg-background/50 h-12"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground/80">Relationship</label>
+            <label className="text-sm font-medium text-foreground/80">{t("recorder.relationshipLabel")}</label>
             <Input
               value={relationship}
               onChange={e => setRelationship(e.target.value)}
-              placeholder="e.g. Colleague, Friend, Family"
+              placeholder={t("recorder.relationshipPlaceholder")}
               className="bg-background/50 h-12"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground/80">Location</label>
+            <label className="text-sm font-medium text-foreground/80">{t("recorder.locationLabel")}</label>
             <Input
               value={locationInput}
               onChange={e => setLocationInput(e.target.value)}
-              placeholder="e.g. San Diego, CA"
+              placeholder={t("recorder.locationPlaceholder")}
               className="bg-background/50 h-12"
             />
           </div>
@@ -248,7 +250,7 @@ export function VideoRecorder({ slug, nodeId }: Props) {
           className="w-full h-14 text-lg font-serif rounded-xl shadow-md hover:shadow-lg transition-all"
         >
           {isSaving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-          {isSaving ? "Saving Tribute..." : "Save Tribute"}
+          {isSaving ? t("recorder.savingTribute") : t("recorder.saveButton")}
         </Button>
       </div>
     </div>

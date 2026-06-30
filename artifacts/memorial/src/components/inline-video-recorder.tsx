@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Square, RefreshCcw, Video as VideoIcon } from "lucide-react";
 import { uploadFile } from "@/lib/upload";
+import { useT } from "@/components/language-provider";
 
 const MAX_VIDEO_BYTES = 18 * 1024 * 1024; // 18 MB
 
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, nodeId, onSaved, onCancel }: Props) {
+  const { t } = useT();
   const { data: currentUser, isLoading: authLoading } = useGetCurrentUser();
   const isAuthenticated = currentUser?.authenticated ?? false;
 
@@ -59,8 +61,8 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
     } catch {
       toast({
         variant: "destructive",
-        title: "Camera unavailable",
-        description: "We couldn't access your camera. Check your browser permissions.",
+        title: t("recorder.cameraUnavailableTitle"),
+        description: t("recorder.cameraUnavailableDesc"),
       });
     }
   };
@@ -69,14 +71,14 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
     if (!isAuthenticated) return;
     startCamera();
     return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current?.getTracks().forEach((track) => track.stop());
       if (timerRef.current) clearInterval(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   if (authLoading) {
-    return <div className="text-sm text-muted-foreground italic font-serif p-2">Preparing…</div>;
+    return <div className="text-sm text-muted-foreground italic font-serif p-2">{t("recorder.preparing")}</div>;
   }
 
   if (!isAuthenticated) {
@@ -84,18 +86,18 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
       <div className="space-y-3 text-sm">
         <div className="flex items-center gap-2 text-foreground/80">
           <VideoIcon size={14} className="text-primary" />
-          <span className="font-medium">Sign in to record</span>
+          <span className="font-medium">{t("recorder.signInToRecord")}</span>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          A quick email link confirms it's you, then your camera opens right here.
+          {t("recorder.signInBody")}
         </p>
         <div className="flex gap-2">
           <Link href={`/sign-in?slug=${slug}&intent=compose`} className="text-xs font-medium text-primary hover:underline">
-            Sign in →
+            {t("recorder.signInLink")}
           </Link>
           {onCancel && (
             <button onClick={onCancel} className="text-xs text-muted-foreground hover:text-foreground ml-auto">
-              Cancel
+              {t("recorder.cancel")}
             </button>
           )}
         </div>
@@ -138,7 +140,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current?.getTracks().forEach((track) => track.stop());
     }
   };
 
@@ -155,8 +157,8 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
     if (recordedBlob.size > MAX_VIDEO_BYTES) {
       toast({
         variant: "destructive",
-        title: "File too large",
-        description: "Video must be under 18 MB. Please re-record a shorter clip.",
+        title: t("recorder.fileTooLargeTitle"),
+        description: t("recorder.fileTooLargeDesc"),
       });
       return;
     }
@@ -176,13 +178,13 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
         },
       });
       await queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
-      toast({ title: "Tribute saved", description: "Your video is now part of the wall." });
+      toast({ title: t("recorder.toastSavedTitle"), description: t("recorder.toastSavedDescInline") });
       onSaved?.();
     } catch {
       toast({
         variant: "destructive",
-        title: "Couldn't save",
-        description: "Something went wrong uploading. Please try again.",
+        title: t("recorder.couldntSaveTitle"),
+        description: t("recorder.couldntSaveDesc"),
       });
     } finally {
       setBusy(false);
@@ -196,7 +198,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
     <div className="space-y-3">
       {contextLabel && (
         <div className="text-[10px] tracking-widest uppercase text-muted-foreground">
-          For {contextLabel}
+          {t("recorder.forContext", { contextLabel })}
         </div>
       )}
       <div className="aspect-video bg-black rounded-lg overflow-hidden relative ring-1 ring-border/30">
@@ -211,13 +213,13 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
         {!recordedBlob && (
           <div className="absolute inset-x-0 bottom-2 flex justify-center items-center gap-3 z-10">
             <div className="absolute left-2 text-white font-mono text-[10px] bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-md">
-              {fmt(recordingTime)} / 3:00
+              {fmt(recordingTime)} {t("recorder.maxDuration")}
             </div>
             {!isRecording ? (
               <button
                 type="button"
                 onClick={startRecording}
-                aria-label="Start recording"
+                aria-label={t("recorder.startRecording")}
                 className="w-10 h-10 bg-red-500 rounded-full border-[3px] border-white/80 hover:scale-105 transition-transform flex items-center justify-center shadow-lg"
               >
                 <div className="w-3 h-3 bg-white rounded-full" />
@@ -226,7 +228,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
               <button
                 type="button"
                 onClick={stopRecording}
-                aria-label="Stop recording"
+                aria-label={t("recorder.stopRecording")}
                 className="w-10 h-10 bg-white/20 rounded-full border-[3px] border-white/80 hover:scale-105 transition-transform flex items-center justify-center backdrop-blur-md"
               >
                 <Square className="w-3.5 h-3.5 text-white fill-white" />
@@ -247,7 +249,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
           disabled={isSaving}
           className="w-full text-xs font-serif"
         >
-          <RefreshCcw className="w-3 h-3 mr-1.5" /> Re-record
+          <RefreshCcw className="w-3 h-3 mr-1.5" /> {t("recorder.reRecord")}
         </Button>
       )}
 
@@ -255,21 +257,21 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
         <Input
           value={authorName}
           onChange={(e) => setAuthorName(e.target.value)}
-          placeholder="Your name *"
+          placeholder={t("recorder.authorNamePlaceholderShort")}
           className="h-9 text-sm bg-background/60"
           disabled={isSaving}
         />
         <Input
           value={relationship}
           onChange={(e) => setRelationship(e.target.value)}
-          placeholder="Relationship (optional)"
+          placeholder={t("recorder.relationshipOptionalPlaceholder")}
           className="h-9 text-sm bg-background/60"
           disabled={isSaving}
         />
         <Input
           value={locationInput}
           onChange={(e) => setLocationInput(e.target.value)}
-          placeholder="Location"
+          placeholder={t("recorder.locationPlaceholder")}
           className="h-9 text-sm bg-background/60"
           disabled={isSaving}
         />
@@ -278,7 +280,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
       <div className="flex gap-2 pt-1">
         {onCancel && (
           <Button variant="ghost" size="sm" onClick={onCancel} disabled={isSaving} className="text-xs">
-            Cancel
+            {t("recorder.cancel")}
           </Button>
         )}
         <Button
@@ -288,7 +290,7 @@ export function InlineVideoRecorder({ slug, defaultLocation = "", contextLabel, 
           className="flex-1 text-xs font-serif"
         >
           {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
-          {isSaving ? "Saving…" : "Save tribute"}
+          {isSaving ? t("recorder.saving") : t("recorder.saveButton")}
         </Button>
       </div>
     </div>
