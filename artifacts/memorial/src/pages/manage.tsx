@@ -67,12 +67,7 @@ interface PageSettingsState {
   wallLabel: string;
 }
 
-const DERIVED_OPTIONS = [
-  { value: "nodeCount", label: "Node count" },
-  { value: "placeCount", label: "Place count" },
-  { value: "contributorCount", label: "Contributor count" },
-  { value: "edgeCount", label: "Connections" },
-] as const;
+const DERIVED_OPTION_VALUES = ["nodeCount", "placeCount", "contributorCount", "edgeCount"] as const;
 
 function buildPageConfig(settings: PageSettingsState): TenantUpdatePageConfig {
   return {
@@ -161,6 +156,12 @@ function buildDefaultSettings(cfg: Record<string, unknown>): PageSettingsState {
 
 export default function Manage() {
   const { t } = useT();
+  const DERIVED_OPTIONS = [
+    { value: "nodeCount", label: t("manage.derivedNodeCount") },
+    { value: "placeCount", label: t("manage.derivedPlaceCount") },
+    { value: "contributorCount", label: t("manage.derivedContributorCount") },
+    { value: "edgeCount", label: t("manage.derivedEdgeCount") },
+  ];
   const slug = useTenantSlug() ?? "";
   const { isAdmin, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
@@ -221,7 +222,7 @@ export default function Manage() {
           queryClient.removeQueries({ queryKey: getGetTenantQueryKey(slug) });
           setLocation("/");
         },
-        onError: () => setDeleteError("Failed to delete the page. Please try again."),
+        onError: () => setDeleteError(t("manage.errorDeletePage")),
       },
     );
   }
@@ -304,7 +305,7 @@ export default function Manage() {
 
   function handleTogglePageSettings() {
     if (showPageSettings) {
-      if (isPageSettingsDirty() && !confirm("You have unsaved page settings. Discard your changes?")) return;
+      if (isPageSettingsDirty() && !confirm(t("manage.confirmDiscardPageSettings"))) return;
       // Reset to persisted so re-opening starts clean.
       setPageSettings(buildDefaultSettings((tenant?.pageConfig ?? {}) as Record<string, unknown>));
       setPageSettingsError(null);
@@ -328,7 +329,7 @@ export default function Manage() {
 
   function handleToggleEditMeta() {
     if (showEditMeta) {
-      if (isMetaDirty() && !confirm("You have unsaved changes to the page details. Discard them?")) return;
+      if (isMetaDirty() && !confirm(t("manage.confirmDiscardMeta"))) return;
       setShowEditMeta(false);
     } else {
       handleOpenEditMeta();
@@ -338,7 +339,7 @@ export default function Manage() {
   function handleToggleAddLink() {
     if (showAddLink) {
       const dirty = !!(linkTitle.trim() || linkUrl.trim() || linkNote.trim());
-      if (dirty && !confirm("Discard this unsaved link?")) return;
+      if (dirty && !confirm(t("manage.confirmDiscardLink"))) return;
       setLinkTitle("");
       setLinkUrl("");
       setLinkNote("");
@@ -373,12 +374,12 @@ export default function Manage() {
             setTimeout(() => setHeroSaved(false), 3000);
           },
           onError: () => {
-            setHeroError("Photo uploaded but failed to save. Try saving page settings.");
+            setHeroError(t("manage.errorHeroSave"));
           },
         },
       );
     } catch {
-      setHeroError("Failed to upload photo.");
+      setHeroError(t("manage.errorHeroUpload"));
     } finally {
       setHeroUploading(false);
       if (heroFileInputRef.current) heroFileInputRef.current.value = "";
@@ -402,7 +403,7 @@ export default function Manage() {
           queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(slug) });
         },
         onError: () => {
-          setHeroError("Failed to remove photo. Try again.");
+          setHeroError(t("manage.errorHeroRemove"));
         },
       },
     );
@@ -455,9 +456,9 @@ export default function Manage() {
         onError: (err: unknown) => {
           const status = (err as { status?: number })?.status;
           if (status === 422) {
-            setPageSettingsError("Invalid page settings — please review.");
+            setPageSettingsError(t("manage.errorPageSettingsInvalid"));
           } else {
-            setPageSettingsError("Failed to save page settings.");
+            setPageSettingsError(t("manage.errorPageSettingsSave"));
           }
         },
       },
@@ -523,7 +524,7 @@ export default function Manage() {
   }
 
   function handleBlock(userId: number) {
-    if (!confirm("Block this author? They will no longer be able to post on this page.")) return;
+    if (!confirm(t("manage.confirmBlock"))) return;
     createBlock.mutate({ slug, data: { userId } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListBlocksQueryKey(slug) });
@@ -533,7 +534,7 @@ export default function Manage() {
   }
 
   function handleUnblock(userId: number) {
-    if (!confirm("Unblock this user?")) return;
+    if (!confirm(t("manage.confirmUnblock"))) return;
     deleteBlock.mutate({ slug, userId }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListBlocksQueryKey(slug) });
@@ -567,12 +568,12 @@ export default function Manage() {
     if (metaTagline.trim()) data.tagline = metaTagline.trim();
     if (metaBirthYear.trim()) {
       const y = parseInt(metaBirthYear, 10);
-      if (isNaN(y)) { setMetaError("Birth year must be a number"); return; }
+      if (isNaN(y)) { setMetaError(t("manage.errorBirthYearNumber")); return; }
       data.birthYear = y;
     }
     if (metaDeathYear.trim()) {
       const y = parseInt(metaDeathYear, 10);
-      if (isNaN(y)) { setMetaError("Death year must be a number"); return; }
+      if (isNaN(y)) { setMetaError(t("manage.errorDeathYearNumber")); return; }
       data.deathYear = y;
     }
     updateTenant.mutate({ slug, data }, {
@@ -580,7 +581,7 @@ export default function Manage() {
         setMetaSuccess(true);
         queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(slug) });
       },
-      onError: () => setMetaError("Failed to update. Try again."),
+      onError: () => setMetaError(t("manage.errorMetaSave")),
     });
   }
 
@@ -589,7 +590,7 @@ export default function Manage() {
     if (createMessage.isPending) return;
     setLinkError(null);
     if (!linkUrl.trim()) {
-      setLinkError("URL is required");
+      setLinkError(t("manage.errorLinkUrlRequired"));
       return;
     }
     createMessage.mutate(
@@ -610,13 +611,13 @@ export default function Manage() {
           setShowAddLink(false);
           queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
         },
-        onError: () => setLinkError("Failed to add link. Try again."),
+        onError: () => setLinkError(t("manage.errorLinkSave")),
       },
     );
   }
 
   function handleDelete(id: number) {
-    if (!confirm("Delete this tribute?")) return;
+    if (!confirm(t("manage.confirmDeleteTribute"))) return;
     deleteMessage.mutate({ slug, id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(slug) });
@@ -628,13 +629,13 @@ export default function Manage() {
   if (!isAuthenticated) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-6">
-        <h1 className="text-3xl font-serif">Sign in required</h1>
+        <h1 className="text-3xl font-serif">{t("manage.signInRequired")}</h1>
         <p className="text-muted-foreground font-serif italic">
-          You must be signed in to manage this page.
+          {t("manage.signInRequiredBody")}
         </p>
         <Link href={`/sign-in?slug=${slug}&intent=manage`}>
           <Button variant="outline" className="font-serif rounded-full px-8">
-            Sign in
+            {t("nav.signIn")}
           </Button>
         </Link>
       </div>
@@ -646,7 +647,7 @@ export default function Manage() {
   if (tenantLoading || (isAuthenticated && !isAdmin && mineLoading)) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="font-serif italic text-muted-foreground animate-pulse">Loading…</div>
+        <div className="font-serif italic text-muted-foreground animate-pulse">{t("manage.loading")}</div>
       </div>
     );
   }
@@ -655,13 +656,13 @@ export default function Manage() {
   if (!isOwner) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-6">
-        <h1 className="text-3xl font-serif">Not authorized</h1>
+        <h1 className="text-3xl font-serif">{t("manage.notAuthorized")}</h1>
         <p className="text-muted-foreground font-serif italic">
-          You are not the owner of this page.
+          {t("manage.notAuthorizedBody")}
         </p>
         <Link href={`/${slug}`}>
           <Button variant="outline" className="font-serif rounded-full px-8">
-            Back to the tribute
+            {t("manage.backToTribute")}
           </Button>
         </Link>
       </div>
@@ -673,14 +674,14 @@ export default function Manage() {
 
       {/* Header */}
       <div className="space-y-2">
-        <div className="text-xs tracking-widest uppercase text-muted-foreground">Manage</div>
+        <div className="text-xs tracking-widest uppercase text-muted-foreground">{t("nav.manage")}</div>
         <h1 className="text-3xl font-serif">{tenant?.friendName ?? slug}</h1>
         <div className="flex gap-3">
           <Link href={`/${slug}`} className="text-xs text-primary hover:underline">
-            View page →
+            {t("manage.viewPage")}
           </Link>
           <Link href={`/${slug}/wall`} className="text-xs text-primary hover:underline">
-            Tribute wall →
+            {t("manage.tributeWallLink")}
           </Link>
         </div>
       </div>
@@ -688,7 +689,7 @@ export default function Manage() {
       {/* Multi-page switcher (only when user owns more than 1 page) */}
       {!mineLoading && mine && mine.length > 1 && (
         <div className="flex items-center gap-2 text-sm">
-          <label htmlFor="page-switcher" className="text-muted-foreground whitespace-nowrap">Switch page:</label>
+          <label htmlFor="page-switcher" className="text-muted-foreground whitespace-nowrap">{t("manage.switchPage")}</label>
           <select
             id="page-switcher"
             className="border border-border/60 rounded-md px-2 py-1 text-sm bg-background"
@@ -715,14 +716,14 @@ export default function Manage() {
           className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition"
           onClick={handleToggleEditMeta}
         >
-          <span className="font-serif text-lg">Edit page details</span>
+          <span className="font-serif text-lg">{t("manage.editPageDetails")}</span>
           {showEditMeta ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         {showEditMeta && (
           <form onSubmit={handleSaveMeta} className="px-5 pb-5 space-y-4 border-t border-border/30 pt-4">
             {/* Friend photo */}
             <div>
-              <label className="block text-xs text-muted-foreground mb-2">Photo</label>
+              <label className="block text-xs text-muted-foreground mb-2">{t("manage.photoLabel")}</label>
               {/* Hidden file input — buttons below trigger it */}
               <input
                 ref={heroFileInputRef}
@@ -736,7 +737,7 @@ export default function Manage() {
                 {pageSettings?.heroPhotoPath ? (
                   <img
                     src={`/api${pageSettings.heroPhotoPath}`}
-                    alt="Friend photo"
+                    alt={t("manage.friendPhotoAlt")}
                     className="h-28 w-28 object-cover rounded-full border border-border/40 shrink-0"
                   />
                 ) : (
@@ -746,7 +747,7 @@ export default function Manage() {
                 )}
                 <div className="space-y-2">
                   {heroUploading ? (
-                    <p className="text-sm text-muted-foreground animate-pulse">Uploading…</p>
+                    <p className="text-sm text-muted-foreground animate-pulse">{t("manage.uploading")}</p>
                   ) : (
                     <Button
                       type="button"
@@ -755,7 +756,7 @@ export default function Manage() {
                       onClick={() => heroFileInputRef.current?.click()}
                       disabled={heroUploading}
                     >
-                      {pageSettings?.heroPhotoPath ? "Change photo" : "Upload photo"}
+                      {pageSettings?.heroPhotoPath ? t("manage.changePhoto") : t("manage.uploadPhoto")}
                     </Button>
                   )}
                   {pageSettings?.heroPhotoPath && !heroUploading && (
@@ -766,61 +767,61 @@ export default function Manage() {
                         onClick={handleRemoveHeroPhoto}
                         disabled={updateTenant.isPending}
                       >
-                        Remove photo
+                        {t("manage.removePhoto")}
                       </button>
                     </div>
                   )}
-                  {heroSaved && <p className="text-xs text-green-600">Photo saved.</p>}
+                  {heroSaved && <p className="text-xs text-green-600">{t("manage.photoSaved")}</p>}
                   {heroError && <p className="text-xs text-destructive">{heroError}</p>}
                 </div>
               </div>
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Name</label>
+              <label className="block text-xs text-muted-foreground mb-1">{t("manage.nameLabel")}</label>
               <input
                 className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                 value={metaFriendName}
                 onChange={e => setMetaFriendName(e.target.value)}
-                placeholder="Friend's full name"
+                placeholder={t("manage.namePlaceholder")}
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Tagline</label>
+              <label className="block text-xs text-muted-foreground mb-1">{t("manage.taglineLabel")}</label>
               <input
                 className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                 value={metaTagline}
                 onChange={e => setMetaTagline(e.target.value)}
-                placeholder="A short tribute tagline"
+                placeholder={t("manage.taglinePlaceholder")}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Birth year</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t("manage.birthYearLabel")}</label>
                 <input
                   className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                   value={metaBirthYear}
                   onChange={e => setMetaBirthYear(e.target.value)}
-                  placeholder="e.g. 1965"
+                  placeholder={t("manage.birthYearPlaceholder")}
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Death year</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t("manage.deathYearLabel")}</label>
                 <input
                   className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                   value={metaDeathYear}
                   onChange={e => setMetaDeathYear(e.target.value)}
-                  placeholder="e.g. 2024"
+                  placeholder={t("manage.deathYearPlaceholder")}
                 />
               </div>
             </div>
             {metaError && <p className="text-xs text-destructive">{metaError}</p>}
-            {metaSuccess && <p className="text-xs text-green-600">Saved successfully.</p>}
+            {metaSuccess && <p className="text-xs text-green-600">{t("manage.savedSuccessfully")}</p>}
             <Button
               type="submit"
               disabled={updateTenant.isPending}
               className="rounded-full font-serif"
             >
-              {updateTenant.isPending ? "Saving…" : "Save changes"}
+              {updateTenant.isPending ? t("manage.saving") : t("manage.saveChanges")}
             </Button>
           </form>
         )}
@@ -833,7 +834,7 @@ export default function Manage() {
           className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition"
           onClick={handleTogglePageSettings}
         >
-          <span className="font-serif text-lg">Page settings</span>
+          <span className="font-serif text-lg">{t("manage.pageSettings")}</span>
           {showPageSettings ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
 
@@ -842,27 +843,27 @@ export default function Manage() {
 
             {/* Theme */}
             <div className="space-y-3">
-              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Theme</h3>
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">{t("manage.themeHeading")}</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Font style</label>
+                  <label className="block text-xs text-muted-foreground mb-1">{t("manage.fontStyleLabel")}</label>
                   <select
                     className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                     value={pageSettings.font}
                     onChange={(e) => setPageSettings((prev) => prev ? { ...prev, font: e.target.value as "serif" | "sans" | "handwritten" } : prev)}
                   >
-                    <option value="serif">Serif</option>
-                    <option value="sans">Sans</option>
-                    <option value="handwritten">Handwritten</option>
+                    <option value="serif">{t("manage.fontSerif")}</option>
+                    <option value="sans">{t("manage.fontSans")}</option>
+                    <option value="handwritten">{t("manage.fontHandwritten")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Palette</label>
+                  <label className="block text-xs text-muted-foreground mb-1">{t("manage.paletteLabel")}</label>
                   <input
                     className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                     value={pageSettings.palette}
                     onChange={(e) => setPageSettings((prev) => prev ? { ...prev, palette: e.target.value } : prev)}
-                    placeholder="e.g. warm"
+                    placeholder={t("manage.palettePlaceholder")}
                   />
                 </div>
                 <div>
@@ -883,7 +884,7 @@ export default function Manage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Accent color</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t("manage.accentColorLabel")}</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
@@ -903,7 +904,7 @@ export default function Manage() {
 
             {/* Hero */}
             <div className="space-y-3">
-              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Hero</h3>
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">{t("manage.heroHeading")}</h3>
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -912,14 +913,14 @@ export default function Manage() {
                     checked={pageSettings.showDates}
                     onChange={(e) => setPageSettings((prev) => prev ? { ...prev, showDates: e.target.checked } : prev)}
                   />
-                  <span className="text-sm">Show birth / death years</span>
+                  <span className="text-sm">{t("manage.showDates")}</span>
                 </label>
               </div>
             </div>
 
             {/* Story */}
             <div className="space-y-3">
-              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Story</h3>
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">{t("manage.storyHeading")}</h3>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -927,39 +928,39 @@ export default function Manage() {
                   checked={pageSettings.storyEnabled}
                   onChange={(e) => setPageSettings((prev) => prev ? { ...prev, storyEnabled: e.target.checked } : prev)}
                 />
-                <span className="text-sm">Enable story section</span>
+                <span className="text-sm">{t("manage.enableStory")}</span>
               </label>
               <div className="space-y-3">
                 {pageSettings.storyBlocks.map((block, i) => (
                   <div key={i} className="border border-border/30 rounded-lg p-3 space-y-2 bg-muted/20">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Block {i + 1}</span>
+                      <span className="text-xs text-muted-foreground">{t("manage.blockN", { n: i + 1 })}</span>
                       <button
                         type="button"
                         onClick={() => removeStoryBlock(i)}
                         className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
-                        aria-label="Remove block"
+                        aria-label={t("manage.removeBlock")}
                       >
                         <Trash2 size={12} />
                       </button>
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Heading</label>
+                      <label className="block text-xs text-muted-foreground mb-1">{t("manage.blockHeadingLabel")}</label>
                       <input
                         className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                         value={block.heading}
                         onChange={(e) => updateStoryBlock(i, "heading", e.target.value)}
-                        placeholder="Section heading"
+                        placeholder={t("manage.blockHeadingPlaceholder")}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Body</label>
+                      <label className="block text-xs text-muted-foreground mb-1">{t("manage.blockBodyLabel")}</label>
                       <textarea
                         className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background resize-y"
                         rows={3}
                         value={block.body}
                         onChange={(e) => updateStoryBlock(i, "body", e.target.value)}
-                        placeholder="Story text…"
+                        placeholder={t("manage.blockBodyPlaceholder")}
                       />
                     </div>
                   </div>
@@ -969,14 +970,14 @@ export default function Manage() {
                   onClick={addStoryBlock}
                   className="flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  <Plus size={12} /> Add story block
+                  <Plus size={12} /> {t("manage.addStoryBlock")}
                 </button>
               </div>
             </div>
 
             {/* Sections */}
             <div className="space-y-3">
-              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Sections</h3>
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">{t("manage.sectionsHeading")}</h3>
               <div className="space-y-1">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -985,7 +986,7 @@ export default function Manage() {
                     checked={pageSettings.sectionStory}
                     onChange={(e) => setPageSettings((prev) => prev ? { ...prev, sectionStory: e.target.checked } : prev)}
                   />
-                  <span className="text-sm">Show story</span>
+                  <span className="text-sm">{t("manage.showStory")}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -994,7 +995,7 @@ export default function Manage() {
                     checked={pageSettings.sectionWall}
                     onChange={(e) => setPageSettings((prev) => prev ? { ...prev, sectionWall: e.target.checked } : prev)}
                   />
-                  <span className="text-sm">Show tribute wall</span>
+                  <span className="text-sm">{t("manage.showWall")}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -1003,11 +1004,11 @@ export default function Manage() {
                     checked={pageSettings.sectionReach}
                     onChange={(e) => setPageSettings((prev) => prev ? { ...prev, sectionReach: e.target.checked } : prev)}
                   />
-                  <span className="text-sm">Show reach network</span>
+                  <span className="text-sm">{t("manage.showReach")}</span>
                 </label>
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-2">Section order</label>
+                <label className="block text-xs text-muted-foreground mb-2">{t("manage.sectionOrder")}</label>
                 <div className="space-y-1">
                   {pageSettings.sectionsOrder.map((key, i) => (
                     <div
@@ -1020,7 +1021,7 @@ export default function Manage() {
                         onClick={() => moveSection(i, -1)}
                         disabled={i === 0}
                         className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
-                        aria-label="Move up"
+                        aria-label={t("manage.moveUp")}
                       >
                         <ArrowUp size={13} />
                       </button>
@@ -1029,7 +1030,7 @@ export default function Manage() {
                         onClick={() => moveSection(i, 1)}
                         disabled={i === pageSettings.sectionsOrder.length - 1}
                         className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
-                        aria-label="Move down"
+                        aria-label={t("manage.moveDown")}
                       >
                         <ArrowDown size={13} />
                       </button>
@@ -1041,39 +1042,39 @@ export default function Manage() {
 
             {/* Reach summary */}
             <div className="space-y-3">
-              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Reach summary callouts</h3>
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">{t("manage.reachSummaryHeading")}</h3>
               <div className="space-y-3">
                 {pageSettings.reachSummary.map((callout, i) => (
                   <div key={i} className="border border-border/30 rounded-lg p-3 space-y-2 bg-muted/20">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Callout {i + 1}</span>
+                      <span className="text-xs text-muted-foreground">{t("manage.calloutN", { n: i + 1 })}</span>
                       <button
                         type="button"
                         onClick={() => removeReachCallout(i)}
                         className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
-                        aria-label="Remove callout"
+                        aria-label={t("manage.removeCallout")}
                       >
                         <Trash2 size={12} />
                       </button>
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Label</label>
+                      <label className="block text-xs text-muted-foreground mb-1">{t("manage.calloutLabelLabel")}</label>
                       <input
                         className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                         value={callout.label}
                         onChange={(e) => updateReachCallout(i, { label: e.target.value })}
-                        placeholder="e.g. Memories"
+                        placeholder={t("manage.calloutLabelPlaceholder")}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Value type</label>
+                      <label className="block text-xs text-muted-foreground mb-1">{t("manage.valueTypeLabel")}</label>
                       <select
                         className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background mb-2"
                         value={callout.mode}
                         onChange={(e) => updateReachCallout(i, { mode: e.target.value as "value" | "derived" })}
                       >
-                        <option value="derived">Derived (auto-computed)</option>
-                        <option value="value">Fixed value</option>
+                        <option value="derived">{t("manage.valueDerived")}</option>
+                        <option value="value">{t("manage.valueFixed")}</option>
                       </select>
                       {callout.mode === "derived" ? (
                         <select
@@ -1101,16 +1102,16 @@ export default function Manage() {
                   onClick={addReachCallout}
                   className="flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  <Plus size={12} /> Add callout
+                  <Plus size={12} /> {t("manage.addCallout")}
                 </button>
               </div>
             </div>
 
             {/* CTA */}
             <div className="space-y-3">
-              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">Call-to-action labels</h3>
+              <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">{t("manage.ctaHeading")}</h3>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Primary button label</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t("manage.ctaPrimaryLabel")}</label>
                 <input
                   className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                   value={pageSettings.primaryLabel}
@@ -1119,7 +1120,7 @@ export default function Manage() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Wall button label</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t("manage.ctaWallLabel")}</label>
                 <input
                   className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                   value={pageSettings.wallLabel}
@@ -1131,14 +1132,14 @@ export default function Manage() {
 
             {/* Save */}
             {pageSettingsError && <p className="text-xs text-destructive">{pageSettingsError}</p>}
-            {pageSettingsSaved && <p className="text-xs text-green-600">Page settings saved.</p>}
+            {pageSettingsSaved && <p className="text-xs text-green-600">{t("manage.pageSettingsSaved")}</p>}
             <Button
               type="button"
               onClick={handleSavePageSettings}
               disabled={updateTenant.isPending || heroUploading}
               className="rounded-full font-serif"
             >
-              {updateTenant.isPending ? "Saving…" : "Save page settings"}
+              {updateTenant.isPending ? t("manage.saving") : t("manage.savePageSettings")}
             </Button>
           </div>
         )}
@@ -1152,15 +1153,14 @@ export default function Manage() {
           onClick={() => setShowPresentation((v) => !v)}
         >
           <span className="font-serif text-lg flex items-center gap-2">
-            <Clapperboard size={18} /> Presentation
+            <Clapperboard size={18} /> {t("manage.presentationHeading")}
           </span>
           {showPresentation ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         {showPresentation && (
           <div className="px-5 pb-5 space-y-4 border-t border-border/30 pt-4">
             <p className="text-xs text-muted-foreground">
-              Choose which memories play in the fullscreen tribute and in what order. Hidden memories
-              stay on the wall but won't appear in the show.
+              {t("manage.presentationDesc")}
             </p>
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -1170,14 +1170,14 @@ export default function Manage() {
                 onChange={(e) => setPresentationCfg((p) => ({ ...p, autoplay: e.target.checked }))}
               />
               <span className="text-sm">
-                Auto-start the tribute when the page opens{" "}
-                <span className="text-muted-foreground">(kiosk mode)</span>
+                {t("manage.autostartLabel")}{" "}
+                <span className="text-muted-foreground">{t("manage.kioskMode")}</span>
               </span>
             </label>
 
             <div className="space-y-1.5">
               {presentationCfg.order.length === 0 && (
-                <p className="font-serif italic text-muted-foreground text-sm">No memories yet.</p>
+                <p className="font-serif italic text-muted-foreground text-sm">{t("manage.noMemoriesYet")}</p>
               )}
               {presentationCfg.order.map((id, i) => {
                 const m = messages?.find((x) => x.id === id);
@@ -1197,14 +1197,14 @@ export default function Manage() {
                     )}
                     <span className="flex-1 min-w-0 text-sm truncate">
                       {m.authorName}
-                      {isHidden && <span className="text-xs text-muted-foreground"> · hidden</span>}
+                      {isHidden && <span className="text-xs text-muted-foreground"> · {t("manage.hiddenLabel")}</span>}
                     </span>
                     <button
                       type="button"
                       onClick={() => movePresentationItem(i, -1)}
                       disabled={i === 0}
                       className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
-                      aria-label="Move up"
+                      aria-label={t("manage.moveUp")}
                     >
                       <ArrowUp size={14} />
                     </button>
@@ -1213,7 +1213,7 @@ export default function Manage() {
                       onClick={() => movePresentationItem(i, 1)}
                       disabled={i === presentationCfg.order.length - 1}
                       className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
-                      aria-label="Move down"
+                      aria-label={t("manage.moveDown")}
                     >
                       <ArrowDown size={14} />
                     </button>
@@ -1221,8 +1221,8 @@ export default function Manage() {
                       type="button"
                       onClick={() => togglePresentationHidden(id)}
                       className="p-0.5 rounded text-muted-foreground hover:text-foreground"
-                      aria-label={isHidden ? "Show in tribute" : "Hide from tribute"}
-                      title={isHidden ? "Show in tribute" : "Hide from tribute"}
+                      aria-label={isHidden ? t("manage.showInTribute") : t("manage.hideFromTribute")}
+                      title={isHidden ? t("manage.showInTribute") : t("manage.hideFromTribute")}
                     >
                       {isHidden ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
@@ -1231,7 +1231,7 @@ export default function Manage() {
               })}
             </div>
 
-            {presentationSaved && <p className="text-xs text-green-600">Presentation saved.</p>}
+            {presentationSaved && <p className="text-xs text-green-600">{t("manage.presentationSaved")}</p>}
             <div className="flex items-center gap-3">
               <Button
                 type="button"
@@ -1239,10 +1239,10 @@ export default function Manage() {
                 disabled={updateTenant.isPending}
                 className="rounded-full font-serif"
               >
-                {updateTenant.isPending ? "Saving…" : "Save presentation"}
+                {updateTenant.isPending ? t("manage.saving") : t("manage.savePresentation")}
               </Button>
               <Link href={`/${slug}/present`} className="text-xs text-primary hover:underline">
-                Preview ▶
+                {t("manage.previewLink")}
               </Link>
             </div>
           </div>
@@ -1257,23 +1257,23 @@ export default function Manage() {
           onClick={handleToggleAddLink}
         >
           <span className="font-serif text-lg flex items-center gap-2">
-            <Plus size={16} /> Add a link
+            <Plus size={16} /> {t("manage.addLinkHeading")}
           </span>
           {showAddLink ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         {showAddLink && (
           <form onSubmit={handleAddLink} className="px-5 pb-5 space-y-3 border-t border-border/30 pt-4">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Title / Author name</label>
+              <label className="block text-xs text-muted-foreground mb-1">{t("manage.linkTitleLabel")}</label>
               <input
                 className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                 value={linkTitle}
                 onChange={e => setLinkTitle(e.target.value)}
-                placeholder="e.g. Tribute article in El País"
+                placeholder={t("manage.linkTitlePlaceholder")}
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">URL</label>
+              <label className="block text-xs text-muted-foreground mb-1">{t("manage.linkUrlLabel")}</label>
               <input
                 className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                 value={linkUrl}
@@ -1284,12 +1284,12 @@ export default function Manage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Note (opt.)</label>
+              <label className="block text-xs text-muted-foreground mb-1">{t("manage.linkNoteLabel")}</label>
               <input
                 className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                 value={linkNote}
                 onChange={e => setLinkNote(e.target.value)}
-                placeholder="A brief description"
+                placeholder={t("manage.linkNotePlaceholder")}
               />
             </div>
             {linkError && <p className="text-xs text-destructive">{linkError}</p>}
@@ -1298,7 +1298,7 @@ export default function Manage() {
               disabled={createMessage.isPending}
               className="rounded-full font-serif"
             >
-              {createMessage.isPending ? "Adding…" : "Add link"}
+              {createMessage.isPending ? t("manage.adding") : t("manage.addLinkButton")}
             </Button>
           </form>
         )}
@@ -1310,12 +1310,12 @@ export default function Manage() {
 
       {/* Tributes list */}
       <section className="bg-card border border-border/40 rounded-xl overflow-hidden p-5 space-y-4">
-        <h2 className="font-serif text-xl">Tributes</h2>
+        <h2 className="font-serif text-xl">{t("manage.tributesHeading")}</h2>
         {messagesLoading && (
-          <p className="font-serif italic text-muted-foreground animate-pulse">Loading tributes…</p>
+          <p className="font-serif italic text-muted-foreground animate-pulse">{t("manage.loadingTributes")}</p>
         )}
         {!messagesLoading && (!messages || messages.length === 0) && (
-          <p className="font-serif italic text-muted-foreground">No tributes yet.</p>
+          <p className="font-serif italic text-muted-foreground">{t("manage.noTributes")}</p>
         )}
         {messages && messages.length > 0 && (
           <ul className="space-y-3">
@@ -1357,8 +1357,8 @@ export default function Manage() {
                       onClick={() => handleBlock(m.userId!)}
                       disabled={createBlock.isPending}
                       className="p-1.5 rounded text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition"
-                      aria-label="Block author"
-                      title="Block author"
+                      aria-label={t("manage.blockAuthor")}
+                      title={t("manage.blockAuthor")}
                     >
                       <ShieldOff size={14} />
                     </button>
@@ -1368,7 +1368,7 @@ export default function Manage() {
                     onClick={() => handleDelete(m.id)}
                     disabled={deleteMessage.isPending}
                     className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
-                    aria-label="Delete tribute"
+                    aria-label={t("manage.deleteTribute")}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -1382,13 +1382,13 @@ export default function Manage() {
       {/* Blocked accounts */}
       <section className="bg-card border border-border/40 rounded-xl overflow-hidden p-5 space-y-4">
         <h2 className="font-serif text-xl flex items-center gap-2">
-          <ShieldCheck size={18} /> Blocked accounts
+          <ShieldCheck size={18} /> {t("manage.blockedAccountsHeading")}
         </h2>
         {blocksLoading && (
-          <p className="font-serif italic text-muted-foreground animate-pulse">Loading…</p>
+          <p className="font-serif italic text-muted-foreground animate-pulse">{t("manage.loading")}</p>
         )}
         {!blocksLoading && (!blocks || blocks.length === 0) && (
-          <p className="font-serif italic text-muted-foreground">No blocked accounts.</p>
+          <p className="font-serif italic text-muted-foreground">{t("manage.noBlockedAccounts")}</p>
         )}
         {blocks && blocks.length > 0 && (
           <ul className="space-y-3">
@@ -1399,13 +1399,13 @@ export default function Manage() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">
-                    {b.name ?? b.email ?? `User #${b.userId}`}
+                    {b.name ?? b.email ?? t("manage.userFallback", { id: b.userId })}
                   </p>
                   {b.email && b.name && (
                     <p className="text-xs text-muted-foreground truncate">{b.email}</p>
                   )}
                   <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                    Blocked {new Date(b.createdAt).toLocaleDateString()}
+                    {t("manage.blockedDate", { date: new Date(b.createdAt).toLocaleDateString() })}
                   </p>
                 </div>
                 <Button
@@ -1416,7 +1416,7 @@ export default function Manage() {
                   disabled={deleteBlock.isPending}
                   className="shrink-0 rounded-full font-serif text-xs"
                 >
-                  Unblock
+                  {t("manage.unblockButton")}
                 </Button>
               </li>
             ))}
@@ -1431,11 +1431,11 @@ export default function Manage() {
       <section className="border border-destructive/40 rounded-xl overflow-hidden">
         <div className="px-5 py-4 bg-destructive/5">
           <h2 className="font-serif text-xl text-destructive flex items-center gap-2">
-            <Trash2 size={18} /> Delete this page
+            <Trash2 size={18} /> {t("manage.deletePageHeading")}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Permanently removes <span className="font-medium">{tenant?.friendName ?? slug}</span> and
-            every tribute, photo, message, and map marker on it. This cannot be undone.
+            {t("manage.deletePageDescBefore")} <span className="font-medium">{tenant?.friendName ?? slug}</span>{" "}
+            {t("manage.deletePageDescAfter")}
           </p>
         </div>
         <div className="px-5 py-4 border-t border-destructive/20">
@@ -1446,12 +1446,12 @@ export default function Manage() {
               className="rounded-full font-serif border-destructive/50 text-destructive hover:bg-destructive/10"
               onClick={() => { setShowDelete(true); setDeleteConfirmText(""); setDeleteError(null); }}
             >
-              Delete page…
+              {t("manage.deletePageButton")}
             </Button>
           ) : (
             <div className="space-y-3 max-w-md">
               <label className="block text-sm text-foreground">
-                Type the page address <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-destructive">{slug}</code> to confirm:
+                {t("manage.deleteConfirmBefore")} <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-destructive">{slug}</code> {t("manage.deleteConfirmAfter")}
               </label>
               <input
                 className="w-full border border-destructive/50 rounded-md px-3 py-2 text-sm bg-background"
@@ -1468,7 +1468,7 @@ export default function Manage() {
                   disabled={deleteConfirmText.trim() !== slug || deleteTenant.isPending}
                   onClick={handleDeletePage}
                 >
-                  {deleteTenant.isPending ? "Deleting…" : "Permanently delete"}
+                  {deleteTenant.isPending ? t("manage.deleting") : t("manage.permanentlyDelete")}
                 </Button>
                 <Button
                   type="button"
@@ -1476,7 +1476,7 @@ export default function Manage() {
                   className="rounded-full font-serif"
                   onClick={() => { setShowDelete(false); setDeleteConfirmText(""); setDeleteError(null); }}
                 >
-                  Cancel
+                  {t("manage.cancelButton")}
                 </Button>
               </div>
             </div>
