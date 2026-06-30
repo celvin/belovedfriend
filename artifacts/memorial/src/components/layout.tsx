@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useListMyTenants, useGetTenant } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { PLATFORM_SEGMENTS } from "@/lib/tenant";
+import { useT } from "@/components/language-provider";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 function useCurrentSlug(): string | undefined {
   const [location] = useLocation();
@@ -53,6 +55,7 @@ function buildThemeStyle(theme?: Record<string, unknown>): React.CSSProperties |
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAdmin, logout, isLoggingOut } = useAuth();
+  const { t } = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const [location, navigate] = useLocation();
 
@@ -138,40 +141,41 @@ export function Layout({ children }: { children: React.ReactNode }) {
               // Platform nav
               <>
                 <Link href="/create" onClick={scrollTop} aria-current={active.create ? "page" : undefined} className={navCls(active.create)}>
-                  Create a page
+                  {t("nav.createPage")}
                 </Link>
                 {isAuthenticated ? (
                   <div className="flex items-center gap-4">
                     <Link href="/dashboard" onClick={scrollTop} aria-current={active.dashboard ? "page" : undefined} className={navCls(active.dashboard)}>
-                      Dashboard
+                      {t("nav.dashboard")}
                     </Link>
                     <Button variant="ghost" size="sm" onClick={logout} disabled={isLoggingOut} className="text-muted-foreground">
-                      Sign Out
+                      {t("nav.signOut")}
                     </Button>
                   </div>
                 ) : (
                   <Link href="/sign-in" onClick={scrollTop} aria-current={active.signin ? "page" : undefined} className={navCls(active.signin)}>
-                    Sign In
+                    {t("nav.signIn")}
                   </Link>
                 )}
+                <LanguageSwitcher />
               </>
             ) : (
               // Tenant nav
               <>
                 <Link href={`/${slug}`} onClick={scrollTop} aria-current={active.home ? "page" : undefined} className={navCls(active.home)}>
-                  Home
+                  {t("nav.home")}
                 </Link>
                 <Link href={`/${slug}/wall`} onClick={scrollTop} aria-current={active.wall ? "page" : undefined} className={navCls(active.wall)}>
-                  Tributes
+                  {t("nav.tributes")}
                 </Link>
                 <Link href={`/${slug}/map`} onClick={scrollTop} aria-current={active.map ? "page" : undefined} className={navCls(active.map)}>
-                  Reach
+                  {t("nav.reach")}
                 </Link>
                 {isAuthenticated ? (
                   <div className="flex items-center gap-4">
                     {isOwner && (
                       <Link href={`/${slug}/manage`} onClick={scrollTop} aria-current={active.manage ? "page" : undefined} className={navCls(active.manage)}>
-                        Manage
+                        {t("nav.manage")}
                       </Link>
                     )}
                     <Link
@@ -180,10 +184,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       aria-current={active.compose ? "page" : undefined}
                       className={`text-sm font-medium transition-colors ${active.compose ? "text-primary font-semibold" : "text-primary hover:text-primary/80"}`}
                     >
-                      Leave a Tribute
+                      {t("nav.leaveTribute")}
                     </Link>
                     <Button variant="ghost" size="sm" onClick={logout} disabled={isLoggingOut} className="text-muted-foreground">
-                      Sign Out
+                      {t("nav.signOut")}
                     </Button>
                   </div>
                 ) : (
@@ -193,9 +197,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     aria-current={active.signin ? "page" : undefined}
                     className={navCls(active.signin)}
                   >
-                    Sign In
+                    {t("nav.signIn")}
                   </Link>
                 )}
+                <LanguageSwitcher />
               </>
             )}
           </nav>
@@ -204,7 +209,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             className="md:hidden p-2 -mr-2 text-foreground/80 hover:text-foreground"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
           >
@@ -224,7 +229,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     onClick={() => go("/create")}
                     className={mobileCls(active.create)}
                   >
-                    Create a page
+                    {t("nav.createPage")}
                   </button>
                   {isAuthenticated ? (
                     <>
@@ -233,7 +238,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         onClick={() => go("/dashboard")}
                         className={mobileCls(active.dashboard)}
                       >
-                        Dashboard
+                        {t("nav.dashboard")}
                       </button>
                       <button
                         type="button"
@@ -244,7 +249,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         disabled={isLoggingOut}
                         className="py-3 text-left text-muted-foreground hover:text-foreground"
                       >
-                        Sign Out
+                        {t("nav.signOut")}
                       </button>
                     </>
                   ) : (
@@ -253,9 +258,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       onClick={() => go("/sign-in")}
                       className={mobileCls(active.signin)}
                     >
-                      Sign In
+                      {t("nav.signIn")}
                     </button>
                   )}
+                  <div className="pt-3 border-t border-border/40 mt-2">
+                    <LanguageSwitcher />
+                  </div>
                 </>
               ) : (
                 // Tenant mobile nav
@@ -265,21 +273,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     onClick={() => go(`/${slug}`)}
                     className={mobileCls(active.home)}
                   >
-                    Home
+                    {t("nav.home")}
                   </button>
                   <button
                     type="button"
                     onClick={() => go(`/${slug}/wall`)}
                     className={mobileCls(active.wall)}
                   >
-                    Tributes
+                    {t("nav.tributes")}
                   </button>
                   <button
                     type="button"
                     onClick={() => go(`/${slug}/map`)}
                     className={mobileCls(active.map)}
                   >
-                    Reach
+                    {t("nav.reach")}
                   </button>
                   {isAuthenticated ? (
                     <>
@@ -289,7 +297,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           onClick={() => go(`/${slug}/manage`)}
                           className={mobileCls(active.manage)}
                         >
-                          Manage
+                          {t("nav.manage")}
                         </button>
                       )}
                       <button
@@ -297,7 +305,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         onClick={() => go(`/${slug}/compose`)}
                         className={`py-3 text-left font-medium ${active.compose ? "text-primary font-semibold" : "text-primary hover:text-primary/80"}`}
                       >
-                        Leave a Tribute
+                        {t("nav.leaveTribute")}
                       </button>
                       <button
                         type="button"
@@ -308,7 +316,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         disabled={isLoggingOut}
                         className="py-3 text-left text-muted-foreground hover:text-foreground"
                       >
-                        Sign Out
+                        {t("nav.signOut")}
                       </button>
                     </>
                   ) : (
@@ -317,9 +325,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       onClick={() => go(`/sign-in?slug=${slug}&intent=compose`)}
                       className={mobileCls(active.signin)}
                     >
-                      Sign In
+                      {t("nav.signIn")}
                     </button>
                   )}
+                  <div className="pt-3 border-t border-border/40 mt-2">
+                    <LanguageSwitcher />
+                  </div>
                 </>
               )}
             </nav>
@@ -332,7 +343,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <footer className="py-8 border-t border-border/40 mt-auto">
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm text-muted-foreground font-serif italic">
-            In loving memory.
+            {t("footer.inLovingMemory")}
           </p>
         </div>
       </footer>
