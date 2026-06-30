@@ -1,0 +1,15 @@
+{
+  "nav.createPage": "Create a page",
+  "nav.dashboard": "Dashboard",
+  "nav.signOut": "Sign Out",
+  "nav.signIn": "Sign In",
+  "nav.home": "Home",
+  "nav.tributes": "Tributes",
+  "nav.reach": "Reach",
+  "nav.manage": "Manage",
+  "nav.leaveTribute": "Leave a Tribute",
+  "nav.openMenu": "Open menu",
+  "nav.closeMenu": "Close menu",
+  "nav.language": "Language",
+  "footer.inLovingMemory": "In loving memory."
+}

@@ -1,0 +1,15 @@
+{
+  "nav.createPage": "Créer une page",
+  "nav.dashboard": "Tableau de bord",
+  "nav.signOut": "Se déconnecter",
+  "nav.signIn": "Se connecter",
+  "nav.home": "Accueil",
+  "nav.tributes": "Hommages",
+  "nav.reach": "Portée",
+  "nav.manage": "Gérer",
+  "nav.leaveTribute": "Laisser un hommage",
+  "nav.openMenu": "Ouvrir le menu",
+  "nav.closeMenu": "Fermer le menu",
+  "nav.language": "Langue",
+  "footer.inLovingMemory": "En mémoire affectueuse."
+}

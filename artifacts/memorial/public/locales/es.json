@@ -1,0 +1,15 @@
+{
+  "nav.createPage": "Crear una página",
+  "nav.dashboard": "Panel",
+  "nav.signOut": "Cerrar sesión",
+  "nav.signIn": "Iniciar sesión",
+  "nav.home": "Inicio",
+  "nav.tributes": "Homenajes",
+  "nav.reach": "Alcance",
+  "nav.manage": "Administrar",
+  "nav.leaveTribute": "Dejar un homenaje",
+  "nav.openMenu": "Abrir menú",
+  "nav.closeMenu": "Cerrar menú",
+  "nav.language": "Idioma",
+  "footer.inLovingMemory": "En memoria amorosa."
+}
