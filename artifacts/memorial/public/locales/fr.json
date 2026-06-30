@@ -32,6 +32,7 @@
   "landing.emptyState": "Pas encore de pages d'hommage.",
   "landing.emptyStateCta": "Soyez le premier à en créer une.",
   "landing.visitPage": "Visiter la page",
+  "landing.closingTagline": "est un espace calme et privé pour que les communautés honorent ceux qui les ont façonnées — conçu avec soin, simple et sans bruit.",
   "home.notFoundHeading": "Page introuvable",
   "home.notFoundBody": "Nous n'avons pas trouvé de page d'hommage à /{slug}.",
   "home.loading": "Chargement…",
@@ -41,5 +42,8 @@
   "home.enterTributeWall": "Accéder au Mur des Hommages",
   "home.reachEyebrow": "Le rayonnement de leur œuvre",
   "home.reachHeading": "Un fil silencieux à travers d'innombrables vies",
-  "home.addVoiceToMap": "Ajoutez votre voix à la carte"
+  "home.addVoiceToMap": "Ajoutez votre voix à la carte",
+  "home.wallLabel": "Lire les hommages",
+  "home.reachLabel": "Explorer leur rayonnement",
+  "home.goToBrand": "Aller sur belovedfriend.org"
 }

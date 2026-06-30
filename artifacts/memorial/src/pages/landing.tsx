@@ -114,7 +114,7 @@ export default function Landing() {
               const Icon = step.icon;
               return (
                 <motion.div
-                  key={step.title}
+                  key={i}
                   custom={i}
                   initial="hidden"
                   whileInView="visible"
@@ -232,8 +232,7 @@ export default function Landing() {
           transition={{ duration: 0.8 }}
           className="text-muted-foreground font-serif italic text-base md:text-lg max-w-xl mx-auto leading-relaxed"
         >
-          belovedfriend.org is a calm, private space for communities to honour the people
-          who shaped them — built with care, kept simple, free of noise.
+          belovedfriend.org {t("landing.closingTagline")}
         </motion.p>
       </section>
     </div>

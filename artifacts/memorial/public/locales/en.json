@@ -32,6 +32,7 @@
   "landing.emptyState": "No tribute pages yet.",
   "landing.emptyStateCta": "Be the first to create one.",
   "landing.visitPage": "Visit page",
+  "landing.closingTagline": "is a calm, private space for communities to honour the people who shaped them — built with care, kept simple, free of noise.",
   "home.notFoundHeading": "Page not found",
   "home.notFoundBody": "We couldn't find a tribute page at /{slug}.",
   "home.loading": "Loading…",
@@ -41,5 +42,8 @@
   "home.enterTributeWall": "Enter the Tribute Wall",
   "home.reachEyebrow": "The Reach of Their Work",
   "home.reachHeading": "A quiet thread through countless lives",
-  "home.addVoiceToMap": "Add your voice to the map"
+  "home.addVoiceToMap": "Add your voice to the map",
+  "home.wallLabel": "Read Tributes",
+  "home.reachLabel": "Explore Their Reach",
+  "home.goToBrand": "Go to belovedfriend.org"
 }

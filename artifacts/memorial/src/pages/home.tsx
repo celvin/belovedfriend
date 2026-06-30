@@ -45,7 +45,7 @@ export default function Home() {
         </p>
         <Link href="/">
           <Button variant="outline" className="font-serif rounded-full px-8">
-            Go to belovedfriend.org
+            {t("home.goToBrand")}
           </Button>
         </Link>
       </div>
@@ -73,9 +73,9 @@ export default function Home() {
   const tributeLabel =
     (ctaConfig.primaryLabel as string | undefined) ??
     (ctaConfig.tributeLabel as string | undefined) ??
-    "Leave a Tribute";
-  const wallLabel = (ctaConfig.wallLabel as string | undefined) ?? "Read Tributes";
-  const reachLabel = (ctaConfig.reachLabel as string | undefined) ?? "Explore Their Reach";
+    t("nav.leaveTribute");
+  const wallLabel = (ctaConfig.wallLabel as string | undefined) ?? t("home.wallLabel");
+  const reachLabel = (ctaConfig.reachLabel as string | undefined) ?? t("home.reachLabel");
 
   const sectionOrder = (sectionsConfig.order as string[] | undefined) ?? ["story", "wall", "reach"];
   // Per-section visibility toggles (default visible unless explicitly false).

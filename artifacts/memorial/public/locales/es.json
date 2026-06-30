@@ -32,6 +32,7 @@
   "landing.emptyState": "Aún no hay páginas de homenaje.",
   "landing.emptyStateCta": "Sé el primero en crear una.",
   "landing.visitPage": "Visitar página",
+  "landing.closingTagline": "es un espacio tranquilo y privado para que las comunidades honren a quienes las formaron — construido con cuidado, simple y libre de ruido.",
   "home.notFoundHeading": "Página no encontrada",
   "home.notFoundBody": "No encontramos una página de homenaje en /{slug}.",
   "home.loading": "Cargando…",
@@ -41,5 +42,8 @@
   "home.enterTributeWall": "Entrar al Muro de Homenajes",
   "home.reachEyebrow": "El alcance de su obra",
   "home.reachHeading": "Un hilo silencioso a través de innumerables vidas",
-  "home.addVoiceToMap": "Añade tu voz al mapa"
+  "home.addVoiceToMap": "Añade tu voz al mapa",
+  "home.wallLabel": "Leer homenajes",
+  "home.reachLabel": "Explorar su alcance",
+  "home.goToBrand": "Ir a belovedfriend.org"
 }
