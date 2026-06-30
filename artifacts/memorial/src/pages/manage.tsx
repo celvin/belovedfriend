@@ -21,7 +21,7 @@ import type { TenantUpdatePageConfig } from "@workspace/api-client-react";
 import { Trash2, Plus, ExternalLink, ChevronDown, ChevronUp, ShieldOff, ShieldCheck, ArrowUp, ArrowDown, Camera, Eye, EyeOff, Clapperboard } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenantSlug } from "@/lib/tenant";
-import { type Lang, isLang } from "@/lib/i18n";
+import { type Lang, isLang, LANGS, LANG_LABELS } from "@/lib/i18n";
 import { useT } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import { uploadFile } from "@/lib/upload";
@@ -877,9 +877,9 @@ export default function Manage() {
                       )
                     }
                   >
-                    <option value="en">English</option>
-                    <option value="es">Español</option>
-                    <option value="fr">Français</option>
+                    {LANGS.map((l) => (
+                      <option key={l} value={l}>{LANG_LABELS[l]}</option>
+                    ))}
                   </select>
                 </div>
               </div>

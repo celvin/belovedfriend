@@ -436,5 +436,6 @@
   "recorder.couldntSaveTitle": "Impossible d'enregistrer",
   "recorder.couldntSaveDesc": "Une erreur s'est produite lors du téléversement. Veuillez réessayer.",
   "recorder.savingTribute": "Enregistrement de l'hommage...",
-  "recorder.forContext": "Pour {contextLabel}"
+  "recorder.forContext": "Pour {contextLabel}",
+  "common.close": "Fermer"
 }

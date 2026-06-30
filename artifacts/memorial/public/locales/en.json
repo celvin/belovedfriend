@@ -436,5 +436,6 @@
   "recorder.couldntSaveTitle": "Couldn't save",
   "recorder.couldntSaveDesc": "Something went wrong uploading. Please try again.",
   "recorder.savingTribute": "Saving Tribute...",
-  "recorder.forContext": "For {contextLabel}"
+  "recorder.forContext": "For {contextLabel}",
+  "common.close": "Close"
 }
