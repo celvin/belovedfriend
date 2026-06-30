@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/components/language-provider";
 
 interface PositionedNode extends ReachNode {
   x: number;
@@ -39,9 +40,8 @@ interface PositionedNode extends ReachNode {
   radius: number;
 }
 
-// Default color/label for unknown categories
+// Default color for unknown categories
 const DEFAULT_COLOR = "#8A7A5A";
-const DEFAULT_LABEL = "Other";
 
 const KNOWN_COLORS: Record<string, string> = {
   project: "#B47C34",
@@ -52,21 +52,22 @@ const KNOWN_COLORS: Record<string, string> = {
   wonder: "#A03A6B",
 };
 
-const KNOWN_LABELS: Record<string, string> = {
-  project: "Project area",
-  city: "City",
-  agency: "Agency",
-  community: "Community",
-  team: "Team",
-  wonder: "Wonder of the World",
+// Category label key lookup — used at render time with t()
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+  project: "map.catProject",
+  city: "map.catCity",
+  agency: "map.catAgency",
+  community: "map.catCommunity",
+  team: "map.catTeam",
+  wonder: "map.catWonder",
 };
 
 function categoryColor(cat: string): string {
   return KNOWN_COLORS[cat] ?? DEFAULT_COLOR;
 }
 
-function categoryLabel(cat: string): string {
-  return KNOWN_LABELS[cat] ?? DEFAULT_LABEL;
+function categoryLabelKey(cat: string): string {
+  return CATEGORY_LABEL_KEYS[cat] ?? "map.catOther";
 }
 
 function radiusFor(node: ReachNode): number {
@@ -97,6 +98,7 @@ interface AddEdgeFormProps {
 }
 
 function AddEdgeForm({ slug, nodes, onClose }: AddEdgeFormProps) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const createEdge = useCreateReachEdge();
   const [sourceId, setSourceId] = useState<string>("");
@@ -110,7 +112,7 @@ function AddEdgeForm({ slug, nodes, onClose }: AddEdgeFormProps) {
     e.preventDefault();
     setError(null);
     if (sameNode) {
-      setError("Source and target must be different nodes.");
+      setError(t("map.edgeErrorSameNode"));
       return;
     }
     createEdge.mutate(
@@ -130,7 +132,7 @@ function AddEdgeForm({ slug, nodes, onClose }: AddEdgeFormProps) {
           const msg =
             err instanceof Error
               ? err.message
-              : "Failed to add connection. The nodes may not belong to this map, or the connection already exists.";
+              : t("map.edgeErrorFailed");
           setError(msg);
         },
       },
@@ -140,14 +142,14 @@ function AddEdgeForm({ slug, nodes, onClose }: AddEdgeFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="block text-xs text-muted-foreground mb-1">From (source)</label>
+        <label className="block text-xs text-muted-foreground mb-1">{t("map.edgeLabelFrom")}</label>
         <select
           className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
           value={sourceId}
           onChange={(e) => setSourceId(e.target.value)}
           required
         >
-          <option value="">Select a place…</option>
+          <option value="">{t("map.selectPlaceholder")}</option>
           {nodes.map((n) => (
             <option key={n.id} value={String(n.id)}>
               {n.label}
@@ -156,14 +158,14 @@ function AddEdgeForm({ slug, nodes, onClose }: AddEdgeFormProps) {
         </select>
       </div>
       <div>
-        <label className="block text-xs text-muted-foreground mb-1">To (target)</label>
+        <label className="block text-xs text-muted-foreground mb-1">{t("map.edgeLabelTo")}</label>
         <select
           className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
           value={targetId}
           onChange={(e) => setTargetId(e.target.value)}
           required
         >
-          <option value="">Select a place…</option>
+          <option value="">{t("map.selectPlaceholder")}</option>
           {nodes.map((n) => (
             <option key={n.id} value={String(n.id)}>
               {n.label}
@@ -172,7 +174,7 @@ function AddEdgeForm({ slug, nodes, onClose }: AddEdgeFormProps) {
         </select>
       </div>
       {sameNode && (
-        <p className="text-xs text-muted-foreground">Choose two different places to connect.</p>
+        <p className="text-xs text-muted-foreground">{t("map.edgeErrorSameNodeHint")}</p>
       )}
       {error && <p className="text-xs text-destructive">{error}</p>}
       <div className="flex gap-2 pt-1">
@@ -181,14 +183,14 @@ function AddEdgeForm({ slug, nodes, onClose }: AddEdgeFormProps) {
           disabled={!canSubmit}
           className="flex-1 bg-primary text-primary-foreground rounded-full py-2 text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
         >
-          {createEdge.isPending ? "Connecting…" : "Connect"}
+          {createEdge.isPending ? t("map.edgeConnecting") : t("map.edgeConnect")}
         </button>
         <button
           type="button"
           onClick={onClose}
           className="px-4 rounded-full py-2 text-sm border border-border/40 hover:bg-muted/40 transition"
         >
-          Cancel
+          {t("wall.editCancel")}
         </button>
       </div>
     </form>
@@ -207,6 +209,8 @@ interface AddPanelProps {
 }
 
 function AddPanel({ slug, nodes, mode, onClose, presetLat, presetLng, onClearLocation, onModeChange }: AddPanelProps) {
+  const { t } = useT();
+
   function handleModeChange(m: AddPanelMode) {
     onModeChange?.(m);
   }
@@ -220,7 +224,7 @@ function AddPanel({ slug, nodes, mode, onClose, presetLat, presetLng, onClearLoc
     >
       <div className="bg-card border border-border/60 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-serif text-lg">Add to the map</h3>
+          <h3 className="font-serif text-lg">{t("map.addPanelHeading")}</h3>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded">
             <X size={16} />
           </button>
@@ -237,7 +241,7 @@ function AddPanel({ slug, nodes, mode, onClose, presetLat, presetLng, onClearLoc
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Add a place
+            {t("map.addPlace")}
           </button>
           <button
             type="button"
@@ -248,7 +252,7 @@ function AddPanel({ slug, nodes, mode, onClose, presetLat, presetLng, onClearLoc
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Connect two
+            {t("map.connectTwo")}
           </button>
         </div>
 
@@ -269,6 +273,7 @@ function AddPanel({ slug, nodes, mode, onClose, presetLat, presetLng, onClearLoc
 }
 
 function AddNodeFormBody({ slug, onClose, presetLat, presetLng, onClearLocation }: AddNodeFormProps) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const createNode = useCreateReachNode();
   const [label, setLabel] = useState("");
@@ -294,12 +299,12 @@ function AddNodeFormBody({ slug, onClose, presetLat, presetLng, onClearLocation 
     } else {
       if (lat.trim()) {
         const n = parseFloat(lat);
-        if (isNaN(n)) { setError("Latitude must be a number"); return; }
+        if (isNaN(n)) { setError(t("map.errorLatNumber")); return; }
         data.lat = n;
       }
       if (lng.trim()) {
         const n = parseFloat(lng);
-        if (isNaN(n)) { setError("Longitude must be a number"); return; }
+        if (isNaN(n)) { setError(t("map.errorLngNumber")); return; }
         data.lng = n;
       }
     }
@@ -309,42 +314,42 @@ function AddNodeFormBody({ slug, onClose, presetLat, presetLng, onClearLocation 
         onClearLocation?.();
         onClose();
       },
-      onError: () => setError("Failed to add node. Try again."),
+      onError: () => setError(t("map.errorAddNodeFailed")),
     });
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="block text-xs text-muted-foreground mb-1">Place or area name</label>
+        <label className="block text-xs text-muted-foreground mb-1">{t("map.nodeLabelField")}</label>
         <input
           className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
           value={label}
           onChange={e => setLabel(e.target.value)}
-          placeholder="e.g. São Paulo, Brazil"
+          placeholder={t("map.nodeLabelPlaceholder")}
           required
         />
       </div>
       <div>
-        <label className="block text-xs text-muted-foreground mb-1">Category</label>
+        <label className="block text-xs text-muted-foreground mb-1">{t("map.nodeCategoryField")}</label>
         <select
           className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
           value={category}
           onChange={e => setCategory(e.target.value)}
         >
-          <option value="city">City</option>
-          <option value="project">Project area</option>
-          <option value="community">Community</option>
-          <option value="team">Team</option>
-          <option value="agency">Agency</option>
-          <option value="wonder">Wonder of the World</option>
-          <option value="other">Other</option>
+          <option value="city">{t("map.catCity")}</option>
+          <option value="project">{t("map.catProject")}</option>
+          <option value="community">{t("map.catCommunity")}</option>
+          <option value="team">{t("map.catTeam")}</option>
+          <option value="agency">{t("map.catAgency")}</option>
+          <option value="wonder">{t("map.catWonder")}</option>
+          <option value="other">{t("map.catOther")}</option>
         </select>
       </div>
       {hasPreset ? (
         <div className="flex items-center justify-between rounded-md border border-border/40 bg-muted/30 px-3 py-2">
           <div className="text-xs text-foreground">
-            📍 Location chosen on the map{" "}
+            {t("map.locationChosen")}{" "}
             <span className="text-muted-foreground">
               ({presetLat!.toFixed(2)}, {presetLng!.toFixed(2)})
             </span>
@@ -354,43 +359,43 @@ function AddNodeFormBody({ slug, onClose, presetLat, presetLng, onClearLocation 
             onClick={onClearLocation}
             className="ml-2 text-xs text-primary hover:underline shrink-0"
           >
-            Pick a different spot
+            {t("map.pickDifferentSpot")}
           </button>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Latitude (opt.)</label>
+              <label className="block text-xs text-muted-foreground mb-1">{t("map.latField")}</label>
               <input
                 className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                 value={lat}
                 onChange={e => setLat(e.target.value)}
-                placeholder="e.g. -23.55"
+                placeholder={t("map.latPlaceholder")}
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Longitude (opt.)</label>
+              <label className="block text-xs text-muted-foreground mb-1">{t("map.lngField")}</label>
               <input
                 className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                 value={lng}
                 onChange={e => setLng(e.target.value)}
-                placeholder="e.g. -46.63"
+                placeholder={t("map.lngPlaceholder")}
               />
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Click the map to choose where this memory belongs.
+            {t("map.clickMapHint")}
           </p>
         </>
       )}
       <div>
-        <label className="block text-xs text-muted-foreground mb-1">Note (opt.)</label>
+        <label className="block text-xs text-muted-foreground mb-1">{t("map.noteField")}</label>
         <input
           className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
           value={note}
           onChange={e => setNote(e.target.value)}
-          placeholder="A brief description"
+          placeholder={t("map.notePlaceholder")}
         />
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -400,14 +405,14 @@ function AddNodeFormBody({ slug, onClose, presetLat, presetLng, onClearLocation 
           disabled={createNode.isPending || !label.trim()}
           className="flex-1 bg-primary text-primary-foreground rounded-full py-2 text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
         >
-          {createNode.isPending ? "Adding…" : "Add to map"}
+          {createNode.isPending ? t("map.nodeAdding") : t("map.nodeAddButton")}
         </button>
         <button
           type="button"
           onClick={onClose}
           className="px-4 rounded-full py-2 text-sm border border-border/40 hover:bg-muted/40 transition"
         >
-          Cancel
+          {t("wall.editCancel")}
         </button>
       </div>
     </form>
@@ -419,6 +424,7 @@ interface ReachNetworkProps {
 }
 
 export function ReachNetwork({ slug }: ReachNetworkProps) {
+  const { t } = useT();
   const { data, isLoading } = useGetReach(slug);
   const { data: tenant } = useGetTenant(slug, {
     query: { enabled: !!slug, queryKey: getGetTenantQueryKey(slug) },
@@ -576,7 +582,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
   if (isLoading || !data) {
     return (
       <div className="h-[640px] w-full flex items-center justify-center text-muted-foreground font-serif italic">
-        Loading the network of their impact...
+        {t("map.loadingNetwork")}
       </div>
     );
   }
@@ -607,8 +613,8 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
           value: it.value != null ? String(it.value) : derivedValue(it.derived),
         }))
       : [
-          { label: "Total nodes", value: String(data.nodes.length) },
-          { label: "Connections", value: String(data.edges.length) },
+          { label: t("map.fallbackTotalNodes"), value: String(data.nodes.length) },
+          { label: t("map.fallbackConnections"), value: String(data.edges.length) },
         ];
 
   // Build unique categories present in the data
@@ -650,7 +656,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Network size={13} /> Constellation
+            <Network size={13} /> {t("map.viewConstellation")}
           </button>
           <button
             type="button"
@@ -661,7 +667,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Globe size={13} /> World map
+            <Globe size={13} /> {t("map.viewWorldMap")}
           </button>
         </div>
       </div>
@@ -680,10 +686,10 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
         <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
           <Link
             href={`/${slug}/present`}
-            title="Play the tribute in fullscreen"
+            title={t("map.presentTitle")}
             className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-primary/30 bg-card/80 backdrop-blur-sm text-primary hover:bg-primary/10 transition"
           >
-            <Play size={12} /> Present
+            <Play size={12} /> {t("map.presentLabel")}
           </Link>
           {isAuthenticated ? (
             <button
@@ -693,17 +699,17 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                 setPickedLocation(null);
                 setShowAddNode(true);
               }}
-              title="Add a place to the map"
+              title={t("map.addToMapTitle")}
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-primary/30 bg-card/80 backdrop-blur-sm text-primary hover:bg-primary/10 transition"
             >
-              <Plus size={12} /> Add to map
+              <Plus size={12} /> {t("map.addToMapLabel")}
             </button>
           ) : (
             <Link
               href={`/sign-in?slug=${slug}&intent=map`}
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-border/30 bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground transition"
             >
-              <Plus size={12} /> Add to map
+              <Plus size={12} /> {t("map.addToMapLabel")}
             </Link>
           )}
           {isAuthenticated && data.nodes.length >= 2 && (
@@ -714,16 +720,16 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                 setPickedLocation(null);
                 setShowAddNode(true);
               }}
-              title="Connect two places"
+              title={t("map.connectTwoTitle")}
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-primary/30 bg-card/80 backdrop-blur-sm text-primary hover:bg-primary/10 transition"
             >
-              <Network size={12} /> Connect
+              <Network size={12} /> {t("map.edgeConnect")}
             </button>
           )}
           <button
             type="button"
             onClick={toggleFullscreen}
-            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            title={isFullscreen ? t("map.exitFullscreen") : t("map.enterFullscreen")}
             className="p-1.5 rounded-full border border-border/30 bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground transition"
           >
             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
@@ -842,7 +848,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
         {selectedLive && (
           <button
             type="button"
-            aria-label="Close marker"
+            aria-label={t("map.closeMarker")}
             onClick={() => setSelected(null)}
             className="absolute inset-0 bg-transparent"
           />
@@ -852,8 +858,8 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
         {!selectedLive && (
           <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs tracking-widest uppercase text-muted-foreground/70">
             {view === "map"
-              ? "Click any place to explore"
-              : "Click any point to explore"}
+              ? t("map.hintClickPlace")
+              : t("map.hintClickPoint")}
           </div>
         )}
 
@@ -868,7 +874,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                 className="inline-block w-2.5 h-2.5 rounded-full"
                 style={{ backgroundColor: categoryColor(k) }}
               />
-              <span className="capitalize">{categoryLabel(k)}</span>
+              <span className="capitalize">{t(categoryLabelKey(k))}</span>
             </div>
           ))}
         </div>
@@ -900,7 +906,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
             >
               <div className="flex items-center gap-3 bg-card/95 backdrop-blur-md border border-primary/30 rounded-full shadow-lg px-4 py-2">
                 <span className="text-xs text-foreground text-center">
-                  Tap the map — or press &amp; hold — to drop a pin
+                  {t("map.tapMapHint")}
                 </span>
                 <button
                   type="button"
@@ -911,7 +917,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                   }}
                   className="text-xs text-muted-foreground hover:text-foreground shrink-0"
                 >
-                  Cancel
+                  {t("wall.editCancel")}
                 </button>
               </div>
               <button
@@ -919,7 +925,7 @@ export function ReachNetwork({ slug }: ReachNetworkProps) {
                 onClick={() => setAddPanelMode("edge")}
                 className="text-[11px] text-primary hover:underline"
               >
-                or connect two existing places →
+                {t("map.orConnectExisting")}
               </button>
             </motion.div>
           )}
@@ -966,6 +972,7 @@ function NodeMarker({
   user: { id: number } | null | undefined;
   isAuthenticated: boolean;
 }) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [recording, setRecording] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -1043,7 +1050,7 @@ function NodeMarker({
       resetPhotoForm();
       setPhotoOpen(false);
     } catch {
-      setPhotoError("Couldn't add your photo. Please try again.");
+      setPhotoError(t("map.photoErrorFailed"));
     } finally {
       setPhotoBusy(false);
     }
@@ -1058,8 +1065,8 @@ function NodeMarker({
     }
   }, [node.id, nodeTributes.length]);
 
-  function isAuthor(t: Message) {
-    return t.userId != null && t.userId === user?.id;
+  function isAuthor(msg: Message) {
+    return msg.userId != null && msg.userId === user?.id;
   }
 
   function openEdit(msg: Message, e: React.MouseEvent) {
@@ -1092,7 +1099,7 @@ function NodeMarker({
   function handleDelete(msg: Message, e: React.MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
-    if (!window.confirm("Are you sure you want to delete this tribute?")) return;
+    if (!window.confirm(t("wall.confirmDelete"))) return;
     deleteMutation.mutate(
       { slug, id: msg.id },
       {
@@ -1111,7 +1118,7 @@ function NodeMarker({
     const trimmedUrl = editUrl.trim();
 
     if (editingMsg.type === "link" && !trimmedUrl) {
-      setEditUrlError("A link needs a URL");
+      setEditUrlError(t("wall.urlRequired"));
       return;
     }
 
@@ -1183,20 +1190,20 @@ function NodeMarker({
             onClick={() => { setModalOpen(false); setRecording(false); setPhotoOpen(true); }}
             className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium text-primary-foreground bg-primary rounded-md py-2 hover:bg-primary/90 transition"
           >
-            <ImagePlus size={13} /> Add a photo &amp; message
+            <ImagePlus size={13} /> {t("map.addPhotoMessage")}
           </button>
           <button
             type="button"
             onClick={() => { setModalOpen(false); setRecording(true); }}
             className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/5 rounded-md py-2 border border-dashed border-primary/30"
           >
-            <Plus size={12} /> Record a video tribute here
+            <Plus size={12} /> {t("map.recordVideoTribute")}
           </button>
           <Link
             href={`/${slug}/compose?node=${node.id}`}
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary hover:underline"
           >
-            <Play size={12} /> Open the full designer →
+            <Play size={12} /> {t("map.openDesigner")}
           </Link>
         </div>
       );
@@ -1207,7 +1214,7 @@ function NodeMarker({
           href={`/sign-in?slug=${slug}&intent=compose`}
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition"
         >
-          Sign in to share a memory from here →
+          {t("map.signInToShare")}
         </Link>
       </div>
     );
@@ -1227,7 +1234,7 @@ function NodeMarker({
         <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2 border-b border-border/40">
           <div className="min-w-0">
             <div className="text-[10px] tracking-widest uppercase text-muted-foreground">
-              {categoryLabel(node.category)}
+              {t(categoryLabelKey(node.category))}
             </div>
             <div className="font-serif text-lg leading-tight text-foreground truncate">
               {node.label}
@@ -1235,7 +1242,7 @@ function NodeMarker({
           </div>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("map.closeButton")}
             className="text-muted-foreground hover:text-foreground p-1 -mt-1 -mr-1 rounded"
           >
             <X size={16} />
@@ -1263,14 +1270,14 @@ function NodeMarker({
             /* >2 tributes: show summary + open modal button */
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                {nodeTributes.length} memories from this place.
+                {t("map.memoriesCount", { count: nodeTributes.length })}
               </p>
               <button
                 type="button"
                 onClick={() => setModalOpen(true)}
                 className="w-full text-xs font-medium text-primary hover:underline text-left"
               >
-                View all memories →
+                {t("map.viewAllMemories")}
               </button>
               <AddAffordances />
             </div>
@@ -1279,34 +1286,34 @@ function NodeMarker({
               {/* Tributes attached to this node (≤2) */}
               {hasTributes ? (
                 <div className="space-y-1.5">
-                  <div className="text-[10px] tracking-widest uppercase text-muted-foreground">Memories from here</div>
-                  {nodeTributes.map((t) => (
-                    <div key={t.id} className="flex items-center gap-1 group">
+                  <div className="text-[10px] tracking-widest uppercase text-muted-foreground">{t("map.memoriesFromHere")}</div>
+                  {nodeTributes.map((tribute) => (
+                    <div key={tribute.id} className="flex items-center gap-1 group">
                       <Link
-                        href={`/${slug}/tribute/${t.id}`}
+                        href={`/${slug}/tribute/${tribute.id}`}
                         className="flex items-center gap-2 text-xs text-foreground hover:text-primary transition truncate flex-1 min-w-0"
                       >
-                        {t.photoPath ? (
-                          <img src={`/api${t.photoPath}`} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
+                        {tribute.photoPath ? (
+                          <img src={`/api${tribute.photoPath}`} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
                         ) : (
                           <Play size={10} className="shrink-0 text-primary/60" />
                         )}
-                        <span className="truncate">{t.authorName}</span>
+                        <span className="truncate">{tribute.authorName}</span>
                       </Link>
-                      {isAuthor(t) && (
+                      {isAuthor(tribute) && (
                         <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
                           <button
                             type="button"
-                            title="Edit"
-                            onClick={(e) => openEdit(t, e)}
+                            title={t("map.editTitle")}
+                            onClick={(e) => openEdit(tribute, e)}
                             className="p-0.5 rounded text-muted-foreground hover:text-foreground"
                           >
                             <Pencil size={11} />
                           </button>
                           <button
                             type="button"
-                            title="Delete"
-                            onClick={(e) => handleDelete(t, e)}
+                            title={t("map.deleteTitle")}
+                            onClick={(e) => handleDelete(tribute, e)}
                             disabled={deleteMutation.isPending}
                             className="p-0.5 rounded text-muted-foreground hover:text-destructive disabled:opacity-50"
                           >
@@ -1318,7 +1325,7 @@ function NodeMarker({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground italic">No memories yet from this place.</p>
+                <p className="text-xs text-muted-foreground italic">{t("map.noMemoriesYet")}</p>
               )}
               <AddAffordances />
             </div>
@@ -1337,46 +1344,46 @@ function NodeMarker({
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1">
             <div className="text-[10px] tracking-widest uppercase text-muted-foreground mb-2">
-              {nodeTributes.length} memories from here
+              {t("map.memoriesFromHereCount", { count: nodeTributes.length })}
             </div>
-            {nodeTributes.map((t) => (
-              <div key={t.id} className="flex items-center gap-2 group py-1">
+            {nodeTributes.map((tribute) => (
+              <div key={tribute.id} className="flex items-center gap-2 group py-1">
                 <Link
-                  href={`/${slug}/tribute/${t.id}`}
+                  href={`/${slug}/tribute/${tribute.id}`}
                   className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition min-w-0 flex-1"
                   onClick={() => setModalOpen(false)}
                 >
-                  {t.photoPath ? (
-                    <img src={`/api${t.photoPath}`} alt="" className="w-9 h-9 rounded object-cover shrink-0" />
+                  {tribute.photoPath ? (
+                    <img src={`/api${tribute.photoPath}`} alt="" className="w-9 h-9 rounded object-cover shrink-0" />
                   ) : (
                     <Play size={12} className="shrink-0 text-primary/60" />
                   )}
                   <span className="min-w-0">
                     <span className="truncate block">
-                      {t.authorName}
-                      {t.relationship ? (
-                        <span className="text-xs text-muted-foreground"> · {t.relationship}</span>
+                      {tribute.authorName}
+                      {tribute.relationship ? (
+                        <span className="text-xs text-muted-foreground"> · {tribute.relationship}</span>
                       ) : null}
                     </span>
-                    {t.body && (
-                      <span className="text-xs text-muted-foreground truncate block">{t.body}</span>
+                    {tribute.body && (
+                      <span className="text-xs text-muted-foreground truncate block">{tribute.body}</span>
                     )}
                   </span>
                 </Link>
-                {isAuthor(t) && (
+                {isAuthor(tribute) && (
                   <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
                     <button
                       type="button"
-                      title="Edit"
-                      onClick={(e) => openEdit(t, e)}
+                      title={t("map.editTitle")}
+                      onClick={(e) => openEdit(tribute, e)}
                       className="p-1 rounded text-muted-foreground hover:text-foreground"
                     >
                       <Pencil size={13} />
                     </button>
                     <button
                       type="button"
-                      title="Delete"
-                      onClick={(e) => handleDelete(t, e)}
+                      title={t("map.deleteTitle")}
+                      onClick={(e) => handleDelete(tribute, e)}
                       disabled={deleteMutation.isPending}
                       className="p-1 rounded text-muted-foreground hover:text-destructive disabled:opacity-50"
                     >
@@ -1397,11 +1404,11 @@ function NodeMarker({
       <Dialog open={!!editingMsg} onOpenChange={(open) => !open && setEditingMsg(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Tribute</DialogTitle>
+            <DialogTitle>{t("wall.editDialogTitle")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nm-edit-author-name">Name</Label>
+              <Label htmlFor="nm-edit-author-name">{t("wall.editLabelName")}</Label>
               <Input
                 id="nm-edit-author-name"
                 value={editAuthorName}
@@ -1409,26 +1416,26 @@ function NodeMarker({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nm-edit-relationship">Relationship (optional)</Label>
+              <Label htmlFor="nm-edit-relationship">{t("wall.editLabelRelationship")}</Label>
               <Input
                 id="nm-edit-relationship"
                 value={editRelationship}
                 onChange={(e) => setEditRelationship(e.target.value)}
-                placeholder="e.g. Friend, Colleague"
+                placeholder={t("wall.editPlaceholderRelationship")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nm-edit-location">Location (optional)</Label>
+              <Label htmlFor="nm-edit-location">{t("wall.editLabelLocation")}</Label>
               <Input
                 id="nm-edit-location"
                 value={editLocation}
                 onChange={(e) => setEditLocation(e.target.value)}
-                placeholder="City, Country"
+                placeholder={t("wall.editPlaceholderLocation")}
               />
             </div>
             {(editingMsg?.type === "card" || editPhotoPath) && (
               <div className="flex flex-col gap-2">
-                <Label>Photo</Label>
+                <Label>{t("manage.photoLabel")}</Label>
                 <input
                   ref={editPhotoInputRef}
                   type="file"
@@ -1450,14 +1457,14 @@ function NodeMarker({
                         onClick={() => editPhotoInputRef.current?.click()}
                         disabled={editPhotoBusy}
                       >
-                        {editPhotoBusy ? "Uploading…" : "Replace photo"}
+                        {editPhotoBusy ? t("manage.uploading") : t("manage.changePhoto")}
                       </button>
                       <button
                         type="button"
                         className="text-xs text-destructive hover:underline"
                         onClick={() => setEditPhotoPath(null)}
                       >
-                        Remove photo
+                        {t("manage.removePhoto")}
                       </button>
                     </div>
                   </div>
@@ -1468,14 +1475,14 @@ function NodeMarker({
                     onClick={() => editPhotoInputRef.current?.click()}
                     disabled={editPhotoBusy}
                   >
-                    {editPhotoBusy ? "Uploading…" : "Add a photo"}
+                    {editPhotoBusy ? t("manage.uploading") : t("map.addPhotoButton")}
                   </button>
                 )}
               </div>
             )}
             {editingMsg?.type === "card" && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="nm-edit-body">Message</Label>
+                <Label htmlFor="nm-edit-body">{t("wall.editLabelMessage")}</Label>
                 <Textarea
                   id="nm-edit-body"
                   value={editBody}
@@ -1486,7 +1493,7 @@ function NodeMarker({
             )}
             {editingMsg?.type === "video" && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="nm-edit-body">Caption (optional)</Label>
+                <Label htmlFor="nm-edit-body">{t("wall.editLabelCaption")}</Label>
                 <Textarea
                   id="nm-edit-body"
                   value={editBody}
@@ -1498,7 +1505,7 @@ function NodeMarker({
             {editingMsg?.type === "link" && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="nm-edit-body">Description (optional)</Label>
+                  <Label htmlFor="nm-edit-body">{t("wall.editLabelDescription")}</Label>
                   <Textarea
                     id="nm-edit-body"
                     value={editBody}
@@ -1507,7 +1514,7 @@ function NodeMarker({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="nm-edit-url">URL</Label>
+                  <Label htmlFor="nm-edit-url">{t("wall.editLabelUrl")}</Label>
                   <Input
                     id="nm-edit-url"
                     value={editUrl}
@@ -1521,10 +1528,10 @@ function NodeMarker({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingMsg(null)}>
-              Cancel
+              {t("wall.editCancel")}
             </Button>
             <Button onClick={handleSave} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Saving…" : "Save"}
+              {updateMutation.isPending ? t("wall.editSaving") : t("wall.editSave")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1534,7 +1541,7 @@ function NodeMarker({
       <Dialog open={photoOpen} onOpenChange={(open) => { if (!open) { setPhotoOpen(false); resetPhotoForm(); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-serif">Add a photo from {node.label}</DialogTitle>
+            <DialogTitle className="font-serif">{t("map.photoDialogTitle", { place: node.label })}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <input
@@ -1550,9 +1557,9 @@ function NodeMarker({
                 onClick={() => photoInputRef.current?.click()}
                 className="relative group rounded-lg overflow-hidden border border-border/40"
               >
-                <img src={photoPreview} alt="Selected" className="w-full max-h-64 object-contain bg-muted" />
+                <img src={photoPreview} alt={t("card.photoPreviewAlt")} className="w-full max-h-64 object-contain bg-muted" />
                 <span className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-xs py-1 text-center opacity-0 group-hover:opacity-100 transition">
-                  Change photo
+                  {t("manage.changePhoto")}
                 </span>
               </button>
             ) : (
@@ -1562,36 +1569,36 @@ function NodeMarker({
                 className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border/50 py-10 text-muted-foreground hover:border-primary/50 hover:text-primary transition"
               >
                 <ImagePlus size={28} />
-                <span className="text-sm">Choose a photo</span>
+                <span className="text-sm">{t("map.choosePhoto")}</span>
               </button>
             )}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nm-photo-msg">A little message (optional)</Label>
+              <Label htmlFor="nm-photo-msg">{t("map.photoMsgLabel")}</Label>
               <Textarea
                 id="nm-photo-msg"
                 value={photoMsg}
                 onChange={(e) => setPhotoMsg(e.target.value)}
                 rows={3}
-                placeholder="Share a memory from here…"
+                placeholder={t("map.photoMsgPlaceholder")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nm-photo-name">Your name (optional)</Label>
+              <Label htmlFor="nm-photo-name">{t("map.photoNameLabel")}</Label>
               <Input
                 id="nm-photo-name"
                 value={photoName}
                 onChange={(e) => setPhotoName(e.target.value)}
-                placeholder="A friend"
+                placeholder={t("map.photoNamePlaceholder")}
               />
             </div>
             {photoError && <p className="text-xs text-destructive">{photoError}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setPhotoOpen(false); resetPhotoForm(); }}>
-              Cancel
+              {t("wall.editCancel")}
             </Button>
             <Button onClick={handlePhotoSubmit} disabled={!photoFile || photoBusy}>
-              {photoBusy ? "Adding…" : "Add to the map"}
+              {photoBusy ? t("map.photoAdding") : t("map.photoAddButton")}
             </Button>
           </DialogFooter>
         </DialogContent>

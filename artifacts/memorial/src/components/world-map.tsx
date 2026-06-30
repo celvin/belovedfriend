@@ -5,6 +5,7 @@ import { zoom, zoomIdentity, type ZoomTransform } from "d3-zoom";
 import { pointer } from "d3-selection";
 import { feature } from "topojson-client";
 import type { ReachNode } from "@workspace/api-client-react";
+import { useT } from "@/components/language-provider";
 
 // Served from the app's own origin (artifacts/memorial/public/) — no external
 // CDN dependency, works offline, and avoids CSP/CDN-availability risk.
@@ -88,6 +89,7 @@ export function WorldMap({
   onLayout,
   onPickLocation,
 }: Props) {
+  const { t } = useT();
   const [features, setFeatures] = useState<AnyFeature[] | null>(cachedFeatures);
   const [loadError, setLoadError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
@@ -373,7 +375,7 @@ export function WorldMap({
                     className="cursor-pointer focus:outline-none"
                     tabIndex={0}
                     role="button"
-                    aria-label={`${p.node.label} — open tributes`}
+                    aria-label={t("map.nodeAriaLabel", { label: p.node.label })}
                     aria-pressed={isSel}
                     onMouseEnter={() => onHover?.(p.node.id)}
                     onMouseLeave={() => onHover?.(null)}
@@ -424,7 +426,7 @@ export function WorldMap({
             fill="#8a7a5a"
             fontSize={14}
           >
-            Drawing the world…
+            {t("map.drawingWorld")}
           </text>
         )}
 
@@ -439,14 +441,14 @@ export function WorldMap({
               fill="#8a7a5a"
               fontSize={14}
             >
-              Map unavailable
+              {t("map.mapUnavailable")}
             </text>
             <g
               transform={`translate(${width / 2}, ${height / 2 + 14})`}
               className="cursor-pointer"
               tabIndex={0}
               role="button"
-              aria-label="Retry loading map"
+              aria-label={t("map.retryAriaLabel")}
               onClick={() => setRetryNonce((n) => n + 1)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -457,7 +459,7 @@ export function WorldMap({
             >
               <rect x={-32} y={-10} width={64} height={20} rx={10} fill="#B47C34" fillOpacity={0.15} />
               <text textAnchor="middle" y={4} fontSize={11} fill="#7A4A1F">
-                Retry
+                {t("map.retryButton")}
               </text>
             </g>
           </>
@@ -475,7 +477,7 @@ export function WorldMap({
             fillOpacity={0.75}
             style={{ pointerEvents: "none" }}
           >
-            Click anywhere to drop a pin
+            {t("map.dropPinHint")}
           </text>
         )}
       </svg>
@@ -494,7 +496,7 @@ export function WorldMap({
       >
         <button
           type="button"
-          aria-label="Zoom in"
+          aria-label={t("map.zoomIn")}
           onClick={zoomIn}
           style={{
             width: 24,
@@ -513,7 +515,7 @@ export function WorldMap({
         </button>
         <button
           type="button"
-          aria-label="Zoom out"
+          aria-label={t("map.zoomOut")}
           onClick={zoomOut}
           style={{
             width: 24,
@@ -532,7 +534,7 @@ export function WorldMap({
         </button>
         <button
           type="button"
-          aria-label="Reset zoom"
+          aria-label={t("map.zoomReset")}
           onClick={zoomReset}
           style={{
             width: 24,
