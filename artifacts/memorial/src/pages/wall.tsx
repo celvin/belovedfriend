@@ -12,10 +12,12 @@ import { useTenantSlug } from "@/lib/tenant";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Message } from "@workspace/api-client-react";
+import { useT } from "@/components/language-provider";
 
 type FilterType = "all" | "card" | "video" | "link";
 
 export default function Wall() {
+  const { t } = useT();
   const slug = useTenantSlug() ?? "";
   const [filter, setFilter] = useState<FilterType>("all");
   const { data: messages, isLoading } = useListMessages(slug, {
@@ -54,7 +56,7 @@ export default function Wall() {
   function handleDelete(msg: Message, e: React.MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
-    if (!window.confirm("Are you sure you want to delete this tribute?")) return;
+    if (!window.confirm(t("wall.confirmDelete"))) return;
     deleteMutation.mutate(
       { slug, id: msg.id },
       {
@@ -73,7 +75,7 @@ export default function Wall() {
     const trimmedUrl = editUrl.trim();
 
     if (editingMsg.type === "link" && !trimmedUrl) {
-      setEditUrlError("A link needs a URL");
+      setEditUrlError(t("wall.urlRequired"));
       return;
     }
 
@@ -123,10 +125,10 @@ export default function Wall() {
     <div className="flex-1 bg-background/50 pb-24">
       <div className="bg-card border-b border-border/40 py-10 md:py-16 px-4 text-center">
         <div className="container mx-auto max-w-4xl">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif mb-4 md:mb-6">Tribute Wall</h1>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif mb-4 md:mb-6">{t("wall.heading")}</h1>
           {stats && (
             <p className="text-base md:text-lg text-muted-foreground font-serif italic mb-6 md:mb-8">
-              {stats.total} tributes from {stats.countries} countries
+              {t("wall.count", { count: stats.total })}{" "}{t("wall.statsFrom", { count: stats.countries })}
             </p>
           )}
 
@@ -137,7 +139,7 @@ export default function Wall() {
               onClick={() => setFilter("all")}
               className="rounded-full font-serif md:h-10 md:px-5"
             >
-              All Messages
+              {t("wall.filterAll")}
             </Button>
             <Button
               variant={filter === "card" ? "default" : "outline"}
@@ -145,7 +147,7 @@ export default function Wall() {
               onClick={() => setFilter("card")}
               className="rounded-full font-serif md:h-10 md:px-5"
             >
-              Cards
+              {t("wall.filterCards")}
             </Button>
             <Button
               variant={filter === "video" ? "default" : "outline"}
@@ -153,7 +155,7 @@ export default function Wall() {
               onClick={() => setFilter("video")}
               className="rounded-full font-serif md:h-10 md:px-5"
             >
-              Videos
+              {t("wall.filterVideos")}
             </Button>
             <Button
               variant={filter === "link" ? "default" : "outline"}
@@ -161,14 +163,14 @@ export default function Wall() {
               onClick={() => setFilter("link")}
               className="rounded-full font-serif md:h-10 md:px-5"
             >
-              Links
+              {t("wall.filterLinks")}
             </Button>
           </div>
 
           <div className="mt-6">
             <Link href={`/${slug}/map`}>
               <Button variant="ghost" size="sm" className="font-serif text-muted-foreground hover:text-foreground">
-                View the memory map →
+                {t("wall.viewMemoryMap")}
               </Button>
             </Link>
           </div>
@@ -185,10 +187,10 @@ export default function Wall() {
         ) : messages?.length === 0 ? (
           <div className="text-center py-24">
             <p className="text-xl text-muted-foreground font-serif italic mb-6">
-              No tributes found.
+              {t("wall.emptyState")}
             </p>
             <Link href={`/${slug}/compose`}>
-              <Button className="font-serif rounded-full px-8">Be the first to leave a tribute</Button>
+              <Button className="font-serif rounded-full px-8">{t("wall.emptyStateCta")}</Button>
             </Link>
           </div>
         ) : (
@@ -377,11 +379,11 @@ export default function Wall() {
       <Dialog open={!!editingMsg} onOpenChange={(open) => !open && setEditingMsg(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Tribute</DialogTitle>
+            <DialogTitle>{t("wall.editDialogTitle")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-author-name">Name</Label>
+              <Label htmlFor="edit-author-name">{t("wall.editLabelName")}</Label>
               <Input
                 id="edit-author-name"
                 value={editAuthorName}
@@ -389,26 +391,26 @@ export default function Wall() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-relationship">Relationship (optional)</Label>
+              <Label htmlFor="edit-relationship">{t("wall.editLabelRelationship")}</Label>
               <Input
                 id="edit-relationship"
                 value={editRelationship}
                 onChange={(e) => setEditRelationship(e.target.value)}
-                placeholder="e.g. Friend, Colleague"
+                placeholder={t("wall.editPlaceholderRelationship")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-location">Location (optional)</Label>
+              <Label htmlFor="edit-location">{t("wall.editLabelLocation")}</Label>
               <Input
                 id="edit-location"
                 value={editLocation}
                 onChange={(e) => setEditLocation(e.target.value)}
-                placeholder="City, Country"
+                placeholder={t("wall.editPlaceholderLocation")}
               />
             </div>
             {editingMsg?.type === "card" && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="edit-body">Message</Label>
+                <Label htmlFor="edit-body">{t("wall.editLabelMessage")}</Label>
                 <Textarea
                   id="edit-body"
                   value={editBody}
@@ -419,7 +421,7 @@ export default function Wall() {
             )}
             {editingMsg?.type === "video" && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="edit-body">Caption (optional)</Label>
+                <Label htmlFor="edit-body">{t("wall.editLabelCaption")}</Label>
                 <Textarea
                   id="edit-body"
                   value={editBody}
@@ -431,7 +433,7 @@ export default function Wall() {
             {editingMsg?.type === "link" && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="edit-body">Description (optional)</Label>
+                  <Label htmlFor="edit-body">{t("wall.editLabelDescription")}</Label>
                   <Textarea
                     id="edit-body"
                     value={editBody}
@@ -440,7 +442,7 @@ export default function Wall() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="edit-url">URL</Label>
+                  <Label htmlFor="edit-url">{t("wall.editLabelUrl")}</Label>
                   <Input
                     id="edit-url"
                     value={editUrl}
@@ -454,10 +456,10 @@ export default function Wall() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingMsg(null)}>
-              Cancel
+              {t("wall.editCancel")}
             </Button>
             <Button onClick={handleSave} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Saving…" : "Save"}
+              {updateMutation.isPending ? t("wall.editSaving") : t("wall.editSave")}
             </Button>
           </DialogFooter>
         </DialogContent>

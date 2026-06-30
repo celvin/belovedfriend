@@ -7,6 +7,7 @@ import { VideoRecorder } from "@/components/video-recorder";
 import { CardDesigner } from "@/components/card-designer";
 import { Video, PenTool, MapPin } from "lucide-react";
 import { useTenantSlug } from "@/lib/tenant";
+import { useT } from "@/components/language-provider";
 
 export default function Compose() {
   const slug = useTenantSlug() ?? "";
@@ -15,11 +16,12 @@ export default function Compose() {
   const nodeParam = new URLSearchParams(search).get("node");
   const nodeId = nodeParam && /^\d+$/.test(nodeParam) ? parseInt(nodeParam, 10) : undefined;
   const [mode, setMode] = useState<"select" | "video" | "card">("select");
+  const { t } = useT();
 
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="font-serif italic text-muted-foreground">Preparing...</div>
+        <div className="font-serif italic text-muted-foreground">{t("compose.preparing")}</div>
       </div>
     );
   }
@@ -27,13 +29,13 @@ export default function Compose() {
   if (!isAuthenticated) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-6">
-        <h1 className="text-3xl font-serif">Sign in to leave a tribute</h1>
+        <h1 className="text-3xl font-serif">{t("compose.signInHeading")}</h1>
         <p className="text-muted-foreground font-serif italic max-w-md">
-          We use a magic link to verify your identity — no password needed.
+          {t("compose.signInSubcopy")}
         </p>
         <Link href={`/sign-in?slug=${slug}&intent=compose`}>
           <Button size="lg" className="font-serif rounded-full px-8">
-            Get a magic link
+            {t("compose.getMagicLink")}
           </Button>
         </Link>
       </div>
@@ -51,15 +53,15 @@ export default function Compose() {
             exit={{ opacity: 0, y: -20 }}
             className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-4xl mx-auto text-center"
           >
-            <h1 className="text-4xl md:text-5xl font-serif mb-6 text-foreground">Leave a Tribute</h1>
+            <h1 className="text-4xl md:text-5xl font-serif mb-6 text-foreground">{t("nav.leaveTribute")}</h1>
             {nodeId != null && (
               <div className="flex items-center justify-center gap-2 mb-4 text-sm text-muted-foreground">
                 <MapPin size={14} className="text-primary/70 shrink-0" />
-                <span>Attaching to a place on the map (node #{nodeId})</span>
+                <span>{t("compose.attachingToNode", { nodeId })}</span>
               </div>
             )}
             <p className="text-lg text-muted-foreground font-serif italic mb-16 max-w-2xl">
-              Choose how you'd like to share your memory. You can record a quiet video message or carefully design a condolence card.
+              {t("compose.selectPrompt")}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl">
@@ -71,9 +73,9 @@ export default function Compose() {
                 <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
                   <Video className="w-10 h-10 text-primary" />
                 </div>
-                <h3 className="text-2xl font-serif mb-4">Record a Video</h3>
+                <h3 className="text-2xl font-serif mb-4">{t("compose.videoOptionTitle")}</h3>
                 <p className="text-muted-foreground text-center">
-                  Speak from the heart. Record up to 3 minutes of video directly from your camera.
+                  {t("compose.videoOptionBody")}
                 </p>
               </button>
 
@@ -85,9 +87,9 @@ export default function Compose() {
                 <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
                   <PenTool className="w-10 h-10 text-primary" />
                 </div>
-                <h3 className="text-2xl font-serif mb-4">Design a Card</h3>
+                <h3 className="text-2xl font-serif mb-4">{t("compose.cardOptionTitle")}</h3>
                 <p className="text-muted-foreground text-center">
-                  Write a message, choose a gentle design, and optionally upload a photo.
+                  {t("compose.cardOptionBody")}
                 </p>
               </button>
             </div>
@@ -102,7 +104,7 @@ export default function Compose() {
           >
             <div className="container mx-auto py-8 px-4">
               <Button variant="ghost" onClick={() => setMode("select")} className="mb-8 font-serif text-muted-foreground hover:text-foreground">
-                ← Back
+                {t("compose.back")}
               </Button>
               <VideoRecorder slug={slug} nodeId={nodeId} />
             </div>
@@ -117,7 +119,7 @@ export default function Compose() {
           >
             <div className="container mx-auto py-8 px-4 max-w-6xl">
               <Button variant="ghost" onClick={() => setMode("select")} className="mb-8 font-serif text-muted-foreground hover:text-foreground">
-                ← Back
+                {t("compose.back")}
               </Button>
               <CardDesigner slug={slug} nodeId={nodeId} />
             </div>

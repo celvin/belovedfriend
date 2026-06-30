@@ -13,8 +13,10 @@ import { format } from "date-fns";
 import { useTenantSlug } from "@/lib/tenant";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { useT } from "@/components/language-provider";
 
 export default function Tribute() {
+  const { t } = useT();
   const slug = useTenantSlug() ?? "";
   const { id } = useParams<{ id: string }>();
   const { data: message, isLoading, error } = useGetMessage(slug, Number(id));
@@ -54,7 +56,7 @@ export default function Tribute() {
 
   function handleDelete() {
     if (!message) return;
-    if (!window.confirm("Are you sure you want to delete this tribute?")) return;
+    if (!window.confirm(t("wall.confirmDelete"))) return;
     deleteMutation.mutate(
       { slug, id: Number(id) },
       {
@@ -74,7 +76,7 @@ export default function Tribute() {
     const trimmedUrl = editUrl.trim();
 
     if (message.type === "link" && !trimmedUrl) {
-      setEditUrlError("A link needs a URL");
+      setEditUrlError(t("wall.urlRequired"));
       return;
     }
 
@@ -122,7 +124,7 @@ export default function Tribute() {
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="font-serif italic text-muted-foreground">Loading tribute...</div>
+        <div className="font-serif italic text-muted-foreground">{t("tribute.loading")}</div>
       </div>
     );
   }
@@ -130,9 +132,9 @@ export default function Tribute() {
   if (error || !message) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-        <h2 className="text-2xl font-serif mb-4">Tribute not found</h2>
+        <h2 className="text-2xl font-serif mb-4">{t("tribute.notFound")}</h2>
         <Link href={`/${slug}/wall`}>
-          <Button variant="outline">Return to Wall</Button>
+          <Button variant="outline">{t("tribute.returnToWall")}</Button>
         </Link>
       </div>
     );
@@ -143,7 +145,7 @@ export default function Tribute() {
       <div className="container max-w-4xl mx-auto">
         <Link href={`/${slug}/wall`} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors mb-8">
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to all tributes
+          {t("tribute.backToWall")}
         </Link>
 
         <motion.div
@@ -178,7 +180,7 @@ export default function Tribute() {
                 <div className="mb-12 flex justify-center">
                   <img
                     src={`/api${message.photoPath}`}
-                    alt="Tribute"
+                    alt={t("tribute.photoAlt")}
                     className="max-h-96 object-contain rounded-lg shadow-md"
                   />
                 </div>
@@ -267,11 +269,11 @@ export default function Tribute() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Tribute</DialogTitle>
+            <DialogTitle>{t("wall.editDialogTitle")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tribute-author-name">Name</Label>
+              <Label htmlFor="tribute-author-name">{t("wall.editLabelName")}</Label>
               <Input
                 id="tribute-author-name"
                 value={editAuthorName}
@@ -279,26 +281,26 @@ export default function Tribute() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tribute-relationship">Relationship (optional)</Label>
+              <Label htmlFor="tribute-relationship">{t("wall.editLabelRelationship")}</Label>
               <Input
                 id="tribute-relationship"
                 value={editRelationship}
                 onChange={(e) => setEditRelationship(e.target.value)}
-                placeholder="e.g. Friend, Colleague"
+                placeholder={t("wall.editPlaceholderRelationship")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tribute-location">Location (optional)</Label>
+              <Label htmlFor="tribute-location">{t("wall.editLabelLocation")}</Label>
               <Input
                 id="tribute-location"
                 value={editLocation}
                 onChange={(e) => setEditLocationValue(e.target.value)}
-                placeholder="City, Country"
+                placeholder={t("wall.editPlaceholderLocation")}
               />
             </div>
             {message.type === "card" && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="tribute-body">Message</Label>
+                <Label htmlFor="tribute-body">{t("wall.editLabelMessage")}</Label>
                 <Textarea
                   id="tribute-body"
                   value={editBody}
@@ -309,7 +311,7 @@ export default function Tribute() {
             )}
             {message.type === "video" && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="tribute-body">Caption (optional)</Label>
+                <Label htmlFor="tribute-body">{t("wall.editLabelCaption")}</Label>
                 <Textarea
                   id="tribute-body"
                   value={editBody}
@@ -321,7 +323,7 @@ export default function Tribute() {
             {message.type === "link" && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="tribute-body">Description (optional)</Label>
+                  <Label htmlFor="tribute-body">{t("wall.editLabelDescription")}</Label>
                   <Textarea
                     id="tribute-body"
                     value={editBody}
@@ -330,7 +332,7 @@ export default function Tribute() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="tribute-url">URL</Label>
+                  <Label htmlFor="tribute-url">{t("wall.editLabelUrl")}</Label>
                   <Input
                     id="tribute-url"
                     value={editUrl}
@@ -344,10 +346,10 @@ export default function Tribute() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Cancel
+              {t("wall.editCancel")}
             </Button>
             <Button onClick={handleSave} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Saving…" : "Save"}
+              {updateMutation.isPending ? t("wall.editSaving") : t("wall.editSave")}
             </Button>
           </DialogFooter>
         </DialogContent>

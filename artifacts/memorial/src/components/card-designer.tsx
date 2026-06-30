@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ImagePlus, X } from "lucide-react";
 import { MessageInputType, CardDesignLayout } from "@workspace/api-client-react";
 import { uploadFile } from "@/lib/upload";
+import { useT } from "@/components/language-provider";
 
 const TEMPLATES = {
   candle: { bg: "linear-gradient(135deg, #FFF9EB 0%, #F5E6CC 100%)", accent: "#B47C34" },
@@ -18,17 +19,6 @@ const TEMPLATES = {
   minimal:{ bg: "#FAFAFA", accent: "#2A2A2A" }
 };
 
-const FONTS = [
-  { id: "serif", name: "Classic Serif" },
-  { id: "sans", name: "Clean Sans" },
-  { id: "handwritten", name: "Handwritten" }
-];
-
-const LAYOUTS: { id: CardDesignLayout, name: string }[] = [
-  { id: "center", name: "Centered" },
-  { id: "top", name: "Top Aligned" },
-  { id: "bottom", name: "Bottom Aligned" }
-];
 
 interface Props {
   slug: string;
@@ -36,6 +26,20 @@ interface Props {
 }
 
 export function CardDesigner({ slug, nodeId }: Props) {
+  const { t } = useT();
+
+  const FONTS = [
+    { id: "serif", name: t("card.fontClassicSerif") },
+    { id: "sans", name: t("card.fontCleanSans") },
+    { id: "handwritten", name: t("card.fontHandwritten") }
+  ];
+
+  const LAYOUTS: { id: CardDesignLayout, name: string }[] = [
+    { id: "center", name: t("card.layoutCentered") },
+    { id: "top", name: t("card.layoutTop") },
+    { id: "bottom", name: t("card.layoutBottom") }
+  ];
+
   const [template, setTemplate] = useState<keyof typeof TEMPLATES>("minimal");
   const [font, setFont] = useState("serif");
   const [layout, setLayout] = useState<CardDesignLayout>("center");
@@ -101,11 +105,11 @@ export function CardDesigner({ slug, nodeId }: Props) {
         }
       });
 
-      toast({ title: "Tribute saved", description: "Your card has been added to the wall." });
+      toast({ title: t("card.toastSavedTitle"), description: t("card.toastSavedDesc") });
       setLocation(`/${slug}/wall`);
 
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to save card." });
+      toast({ variant: "destructive", title: t("card.toastErrorTitle"), description: t("card.toastErrorDesc") });
     } finally {
       setBusy(false);
     }
@@ -118,21 +122,21 @@ export function CardDesigner({ slug, nodeId }: Props) {
       {/* Controls */}
       <div className="space-y-10">
         <div>
-          <h2 className="text-3xl font-serif mb-2">Design a Card</h2>
-          <p className="text-muted-foreground font-serif italic">Take your time to write something beautiful.</p>
+          <h2 className="text-3xl font-serif mb-2">{t("card.heading")}</h2>
+          <p className="text-muted-foreground font-serif italic">{t("card.subheading")}</p>
         </div>
 
         <div className="space-y-8">
           <div className="space-y-4">
-            <label className="text-sm font-medium text-foreground/80 uppercase tracking-widest">Theme</label>
+            <label className="text-sm font-medium text-foreground/80 uppercase tracking-widest">{t("card.themeLabel")}</label>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-              {(Object.keys(TEMPLATES) as Array<keyof typeof TEMPLATES>).map(t => (
+              {(Object.keys(TEMPLATES) as Array<keyof typeof TEMPLATES>).map(tmpl => (
                 <button
-                  key={t}
-                  onClick={() => setTemplate(t)}
-                  className={`w-full aspect-square rounded-full border-2 transition-all ${template === t ? 'border-primary scale-110 shadow-md' : 'border-transparent hover:scale-105'}`}
-                  style={{ background: TEMPLATES[t].bg }}
-                  title={t}
+                  key={tmpl}
+                  onClick={() => setTemplate(tmpl)}
+                  className={`w-full aspect-square rounded-full border-2 transition-all ${template === tmpl ? 'border-primary scale-110 shadow-md' : 'border-transparent hover:scale-105'}`}
+                  style={{ background: TEMPLATES[tmpl].bg }}
+                  title={tmpl}
                 />
               ))}
             </div>
@@ -140,7 +144,7 @@ export function CardDesigner({ slug, nodeId }: Props) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground/80 uppercase tracking-widest">Font</label>
+              <label className="text-sm font-medium text-foreground/80 uppercase tracking-widest">{t("card.fontLabel")}</label>
               <div className="flex flex-col gap-2">
                 {FONTS.map(f => (
                   <Button
@@ -156,7 +160,7 @@ export function CardDesigner({ slug, nodeId }: Props) {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground/80 uppercase tracking-widest">Layout</label>
+              <label className="text-sm font-medium text-foreground/80 uppercase tracking-widest">{t("card.layoutLabel")}</label>
               <div className="flex flex-col gap-2">
                 {LAYOUTS.map(l => (
                   <Button
@@ -175,32 +179,32 @@ export function CardDesigner({ slug, nodeId }: Props) {
 
           <div className="space-y-4 pt-4 border-t border-border/40">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground/80">Title <span className="text-muted-foreground font-normal">(Optional)</span></label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="A beautiful memory..." className="bg-background/50" />
+              <label className="text-sm font-medium text-foreground/80">{t("card.titleLabel")} <span className="text-muted-foreground font-normal">{t("card.optional")}</span></label>
+              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("card.titlePlaceholder")} className="bg-background/50" />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground/80">Message <span className="text-destructive">*</span></label>
+              <label className="text-sm font-medium text-foreground/80">{t("card.messageLabel")} <span className="text-destructive">*</span></label>
               <Textarea
                 value={body}
                 onChange={e => setBody(e.target.value)}
-                placeholder="Share your thoughts..."
+                placeholder={t("card.messagePlaceholder")}
                 className="min-h-[120px] bg-background/50 resize-y"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground/80">Sign-off <span className="text-muted-foreground font-normal">(Optional)</span></label>
-              <Input value={signature} onChange={e => setSignature(e.target.value)} placeholder="With love," className="bg-background/50" />
+              <label className="text-sm font-medium text-foreground/80">{t("card.signoffLabel")} <span className="text-muted-foreground font-normal">{t("card.optional")}</span></label>
+              <Input value={signature} onChange={e => setSignature(e.target.value)} placeholder={t("card.signoffPlaceholder")} className="bg-background/50" />
             </div>
           </div>
 
           <div className="space-y-4 pt-4 border-t border-border/40">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground/80">Your Details</label>
+              <label className="text-sm font-medium text-foreground/80">{t("card.yourDetailsLabel")}</label>
               <div className="grid grid-cols-2 gap-4">
-                <Input value={authorName} onChange={e => setAuthorName(e.target.value)} placeholder="Your Name *" className="bg-background/50" />
-                <Input value={relationship} onChange={e => setRelationship(e.target.value)} placeholder="Relationship" className="bg-background/50" />
+                <Input value={authorName} onChange={e => setAuthorName(e.target.value)} placeholder={t("card.authorNamePlaceholder")} className="bg-background/50" />
+                <Input value={relationship} onChange={e => setRelationship(e.target.value)} placeholder={t("card.relationshipPlaceholder")} className="bg-background/50" />
               </div>
             </div>
           </div>
@@ -211,7 +215,7 @@ export function CardDesigner({ slug, nodeId }: Props) {
             className="w-full h-14 text-lg font-serif rounded-xl shadow-md"
           >
             {isSaving && <Loader2 className="w-5 h-5 animate-spin mr-2" />}
-            {isSaving ? "Saving..." : "Save Card"}
+            {isSaving ? t("card.saving") : t("card.saveButton")}
           </Button>
         </div>
       </div>
@@ -219,7 +223,7 @@ export function CardDesigner({ slug, nodeId }: Props) {
       {/* Live Preview */}
       <div className="relative">
         <div className="sticky top-24">
-          <label className="text-sm font-medium text-muted-foreground uppercase tracking-widest block mb-4">Live Preview</label>
+          <label className="text-sm font-medium text-muted-foreground uppercase tracking-widest block mb-4">{t("card.livePreview")}</label>
 
           <div
             className="w-full aspect-[3/4] md:aspect-auto md:min-h-[600px] rounded-2xl shadow-2xl overflow-hidden flex flex-col relative transition-all duration-500 ease-in-out border border-border/10"
@@ -231,7 +235,7 @@ export function CardDesigner({ slug, nodeId }: Props) {
           >
             {photoPreview ? (
               <div className="relative w-full h-64 shrink-0 group">
-                <img src={photoPreview} alt="Preview" className="w-full h-full object-cover opacity-90" />
+                <img src={photoPreview} alt={t("card.photoPreviewAlt")} className="w-full h-full object-cover opacity-90" />
                 <button
                   onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
                   className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
@@ -243,7 +247,7 @@ export function CardDesigner({ slug, nodeId }: Props) {
               <div className="absolute top-4 right-4 z-10">
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoChange} />
                 <Button variant="secondary" size="sm" className="bg-white/50 backdrop-blur-md hover:bg-white/80 text-black shadow-sm" onClick={() => fileInputRef.current?.click()}>
-                  <ImagePlus className="w-4 h-4 mr-2" /> Add Photo
+                  <ImagePlus className="w-4 h-4 mr-2" /> {t("card.addPhoto")}
                 </Button>
               </div>
             )}
@@ -258,7 +262,7 @@ export function CardDesigner({ slug, nodeId }: Props) {
               {body ? (
                 <p className="text-lg md:text-xl leading-relaxed whitespace-pre-wrap opacity-80">{body}</p>
               ) : (
-                <p className="text-lg md:text-xl leading-relaxed opacity-40 italic">Your message will appear here...</p>
+                <p className="text-lg md:text-xl leading-relaxed opacity-40 italic">{t("card.messagePlaceholderPreview")}</p>
               )}
 
               {signature && (

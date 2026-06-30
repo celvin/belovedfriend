@@ -10,6 +10,12 @@
   PORT = "4173"
   NPM_FLAGS = "--version" # opt out of Netlify's default npm install — pnpm runs in `command`
 
+# Translation files must never be cached, so edits take effect on the next reload.
+[[headers]]
+  for = "/locales/*"
+  [headers.values]
+    Cache-Control = "no-store, must-revalidate"
+
 # Blobs upload endpoint — native function, bypasses the Express catch-all.
 [[redirects]]
   from = "/api/uploads"

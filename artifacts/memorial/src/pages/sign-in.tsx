@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { useT } from "@/components/language-provider";
 
 export default function SignIn() {
+  const { t } = useT();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [, setLocation] = useLocation();
@@ -47,15 +49,15 @@ export default function SignIn() {
       { data: { token } },
       {
         onSuccess: (data) => {
-          toast({ title: "Welcome back", description: "Successfully signed in." });
+          toast({ title: t("signin.toastWelcomeTitle"), description: t("signin.toastWelcomeDesc") });
           // Navigate to the server-computed redirect, falling back to /dashboard
           setLocation(data.redirectTo || "/dashboard");
         },
         onError: () => {
           toast({
             variant: "destructive",
-            title: "Sign in failed",
-            description: "This link may have expired.",
+            title: t("signin.toastFailTitle"),
+            description: t("signin.toastFailDesc"),
           });
           setLocation("/sign-in");
         },
@@ -80,7 +82,7 @@ export default function SignIn() {
           setSubmitted(true);
         },
         onError: () => {
-          toast({ variant: "destructive", title: "Error", description: "Failed to send link. Please try again." });
+          toast({ variant: "destructive", title: t("signin.toastErrorTitle"), description: t("signin.toastErrorDesc") });
         }
       }
     );
@@ -89,7 +91,7 @@ export default function SignIn() {
   if (authLoading || verifyLink.isPending) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="font-serif italic text-muted-foreground">Authenticating...</div>
+        <div className="font-serif italic text-muted-foreground">{t("signin.authenticating")}</div>
       </div>
     );
   }
@@ -101,9 +103,9 @@ export default function SignIn() {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md bg-card p-8 md:p-12 rounded-2xl shadow-xl border border-border/40 text-center"
       >
-        <h1 className="text-3xl font-serif mb-2">Leave a Tribute</h1>
+        <h1 className="text-3xl font-serif mb-2">{t("signin.heading")}</h1>
         <p className="text-muted-foreground font-serif italic mb-8">
-          Sign in to share a memory, a story, or a quiet thought.
+          {t("signin.subheading")}
         </p>
 
         {submitted ? (
@@ -111,25 +113,27 @@ export default function SignIn() {
             <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><rect width="20" height="14" x="2" y="5" rx="2"/></svg>
             </div>
-            <h2 className="text-xl font-serif">Check your email</h2>
+            <h2 className="text-xl font-serif">{t("signin.checkEmail")}</h2>
             <p className="text-muted-foreground">
-              We sent a magic link to <span className="font-medium text-foreground">{email}</span>. Click it to sign in.
+              {t("signin.sentToBefore")}{" "}
+              <span className="font-medium text-foreground">{email}</span>
+              {". "}{t("signin.sentToAfter")}
             </p>
             <Button variant="ghost" onClick={() => setSubmitted(false)} className="mt-4">
-              Use a different email
+              {t("signin.useDifferentEmail")}
             </Button>
           </motion.div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6 text-left">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium text-foreground/80">
-                Email address
+                {t("signin.emailLabel")}
               </label>
               <Input
                 id="email"
                 type="email"
                 required
-                placeholder="you@example.com"
+                placeholder={t("signin.emailPlaceholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-12 bg-background"
@@ -140,7 +144,7 @@ export default function SignIn() {
               className="w-full h-12 text-lg font-serif rounded-xl"
               disabled={requestLink.isPending}
             >
-              {requestLink.isPending ? "Sending..." : "Send Magic Link"}
+              {requestLink.isPending ? t("signin.sending") : t("signin.sendButton")}
             </Button>
           </form>
         )}

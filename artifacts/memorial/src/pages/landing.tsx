@@ -3,24 +3,9 @@ import { motion, type Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useListTenants } from "@workspace/api-client-react";
 import { Heart, Share2, MapPin, ArrowRight } from "lucide-react";
+import { useT } from "@/components/language-provider";
 
-const steps = [
-  {
-    icon: Heart,
-    title: "Create a page",
-    body: "Give their memory a home — a quiet, beautiful space that honours who they were.",
-  },
-  {
-    icon: Share2,
-    title: "Share the link",
-    body: "Send it to family, friends, colleagues — anyone whose life they touched.",
-  },
-  {
-    icon: MapPin,
-    title: "Friends leave tributes & map pins",
-    body: "Each message, story, and location builds a living portrait of their reach.",
-  },
-];
+const stepIcons = [Heart, Share2, MapPin];
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -32,7 +17,26 @@ const fadeUp: Variants = {
 };
 
 export default function Landing() {
+  const { t } = useT();
   const { data: tenants, isLoading } = useListTenants();
+
+  const steps = [
+    {
+      icon: stepIcons[0],
+      title: t("landing.step1Title"),
+      body: t("landing.step1Body"),
+    },
+    {
+      icon: stepIcons[1],
+      title: t("landing.step2Title"),
+      body: t("landing.step2Body"),
+    },
+    {
+      icon: stepIcons[2],
+      title: t("landing.step3Title"),
+      body: t("landing.step3Body"),
+    },
+  ];
 
   return (
     <div className="flex-1 flex flex-col">
@@ -53,14 +57,13 @@ export default function Landing() {
           </p>
 
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif leading-tight mb-6 text-foreground">
-            A place to remember<br />those we love.
+            {t("landing.heroHeading")}
           </h1>
 
           <div className="w-14 h-px bg-primary/30 mx-auto my-6" />
 
           <p className="text-lg md:text-xl text-muted-foreground font-serif italic leading-relaxed mb-10">
-            Create a beautiful tribute page for a beloved friend — gather stories,
-            memories, and heartfelt messages from everyone who cared for them.
+            {t("landing.heroSubcopy")}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -69,7 +72,7 @@ export default function Landing() {
                 size="lg"
                 className="font-serif text-base md:text-lg rounded-full px-10 py-6 shadow-md hover:shadow-lg transition-shadow duration-300"
               >
-                Create a tribute page
+                {t("landing.heroCtaCreate")}
               </Button>
             </Link>
             <a href="#how-it-works">
@@ -78,7 +81,7 @@ export default function Landing() {
                 size="lg"
                 className="font-serif text-base md:text-lg rounded-full px-8 py-6 text-muted-foreground hover:text-foreground transition-colors"
               >
-                How it works
+                {t("landing.heroCtaHowItWorks")}
               </Button>
             </a>
           </div>
@@ -99,10 +102,10 @@ export default function Landing() {
             className="text-center mb-14"
           >
             <h2 className="text-3xl md:text-4xl font-serif text-foreground mb-3">
-              How it works
+              {t("landing.howItWorksHeading")}
             </h2>
             <p className="text-muted-foreground font-serif italic">
-              Three gentle steps, lasting forever.
+              {t("landing.howItWorksSubheading")}
             </p>
           </motion.div>
 
@@ -111,7 +114,7 @@ export default function Landing() {
               const Icon = step.icon;
               return (
                 <motion.div
-                  key={step.title}
+                  key={i}
                   custom={i}
                   initial="hidden"
                   whileInView="visible"
@@ -124,7 +127,7 @@ export default function Landing() {
                   </div>
                   <div>
                     <p className="text-xs tracking-[0.2em] uppercase text-primary/60 font-medium mb-1">
-                      Step {i + 1}
+                      {t("landing.stepLabel", { n: String(i + 1) })}
                     </p>
                     <h3 className="text-xl font-serif text-foreground mb-2">{step.title}</h3>
                     <p className="text-sm md:text-base text-muted-foreground font-serif italic leading-relaxed">
@@ -148,27 +151,27 @@ export default function Landing() {
           className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-serif text-foreground mb-2">
-            Tribute pages
+            {t("landing.directoryHeading")}
           </h2>
           <p className="text-muted-foreground font-serif italic text-base">
-            Each one a life remembered with care.
+            {t("landing.directorySubheading")}
           </p>
         </motion.div>
 
         {isLoading && (
           <div className="text-center font-serif italic text-muted-foreground animate-pulse py-12">
-            Loading…
+            {t("landing.loading")}
           </div>
         )}
 
         {!isLoading && (!tenants || tenants.length === 0) && (
           <div className="text-center font-serif italic text-muted-foreground py-16 space-y-3">
-            <p className="text-lg">No tribute pages yet.</p>
+            <p className="text-lg">{t("landing.emptyState")}</p>
             <Link
               href="/create"
               className="underline underline-offset-4 hover:text-foreground transition-colors text-sm"
             >
-              Be the first to create one.
+              {t("landing.emptyStateCta")}
             </Link>
           </div>
         )}
@@ -208,7 +211,7 @@ export default function Landing() {
                         /{tenant.slug}
                       </span>
                       <span className="flex items-center gap-1 text-xs text-primary/70 font-serif group-hover:gap-2 transition-all duration-200">
-                        Visit page
+                        {t("landing.visitPage")}
                         <ArrowRight className="w-3 h-3" strokeWidth={1.5} />
                       </span>
                     </div>
@@ -229,8 +232,7 @@ export default function Landing() {
           transition={{ duration: 0.8 }}
           className="text-muted-foreground font-serif italic text-base md:text-lg max-w-xl mx-auto leading-relaxed"
         >
-          belovedfriend.org is a calm, private space for communities to honour the people
-          who shaped them — built with care, kept simple, free of noise.
+          belovedfriend.org {t("landing.closingTagline")}
         </motion.p>
       </section>
     </div>

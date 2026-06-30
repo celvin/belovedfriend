@@ -12,6 +12,7 @@ import {
   type Message,
 } from "@workspace/api-client-react";
 import { useTenantSlug } from "@/lib/tenant";
+import { useT } from "@/components/language-provider";
 import { TitleScene } from "@/components/presentation/title-scene";
 import { MemoryScene } from "@/components/presentation/memory-scene";
 import { JourneyScene } from "@/components/presentation/journey-scene";
@@ -21,6 +22,7 @@ import { SCENE_MS, POLL_MS, FLOURISH_MS, PALETTE } from "@/components/presentati
 type Scene = { kind: "title" } | { kind: "journey" } | { kind: "memory"; message: Message };
 
 export default function Present() {
+  const { t } = useT();
   const slug = useTenantSlug() ?? "";
   const [, setLocation] = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -211,8 +213,8 @@ export default function Present() {
     seenRef.current = ids;
     if (!isNew) return;
     setFlourish(true);
-    const t = setTimeout(() => setFlourish(false), FLOURISH_MS);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setFlourish(false), FLOURISH_MS);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   // Auto-hiding controls + cursor.
@@ -271,7 +273,7 @@ export default function Present() {
     >
       {!ready ? (
         <div className="absolute inset-0 flex items-center justify-center font-serif italic text-white/60">
-          Preparing the tribute…
+          {t("present.preparing")}
         </div>
       ) : (
         <>
@@ -325,7 +327,7 @@ export default function Present() {
 
           {empty && (
             <div className="pointer-events-none absolute bottom-24 left-0 right-0 text-center font-serif italic text-white/50">
-              Memories will appear here as they're shared.
+              {t("present.emptyState")}
             </div>
           )}
 
@@ -337,7 +339,7 @@ export default function Present() {
                 exit={{ opacity: 0 }}
                 className="absolute left-1/2 top-8 z-[115] -translate-x-1/2 rounded-full border border-white/20 bg-white/10 px-5 py-2 font-serif text-sm backdrop-blur-md"
               >
-                ✨ A new memory just arrived
+                {t("present.newMemoryArrived")}
               </motion.div>
             )}
           </AnimatePresence>

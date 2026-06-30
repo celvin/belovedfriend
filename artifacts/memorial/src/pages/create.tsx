@@ -10,8 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useT } from "@/components/language-provider";
 
 function SlugAvailabilityIndicator({ slug }: { slug: string }) {
+  const { t } = useT();
   const { data, isLoading, isFetching } = useCheckSlugAvailability(slug, {
     query: { enabled: slug.length >= 2, queryKey: getCheckSlugAvailabilityQueryKey(slug) },
   });
@@ -19,17 +21,18 @@ function SlugAvailabilityIndicator({ slug }: { slug: string }) {
   if (!slug || slug.length < 2) return null;
   if (isLoading || isFetching) {
     return (
-      <span className="text-xs text-muted-foreground animate-pulse">Checking…</span>
+      <span className="text-xs text-muted-foreground animate-pulse">{t("create.checking")}</span>
     );
   }
   if (!data) return null;
   if (data.available) {
-    return <span className="text-xs text-green-600 font-medium">Available</span>;
+    return <span className="text-xs text-green-600 font-medium">{t("create.available")}</span>;
   }
-  return <span className="text-xs text-destructive font-medium">Already taken</span>;
+  return <span className="text-xs text-destructive font-medium">{t("create.alreadyTaken")}</span>;
 }
 
 export default function Create() {
+  const { t } = useT();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -45,14 +48,14 @@ export default function Create() {
 
   // Debounce slug input ~400ms
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSlug(slugInput.trim().toLowerCase()), 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedSlug(slugInput.trim().toLowerCase()), 400);
+    return () => clearTimeout(timer);
   }, [slugInput]);
 
   if (authLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="font-serif italic text-muted-foreground animate-pulse">Loading…</div>
+        <div className="font-serif italic text-muted-foreground animate-pulse">{t("create.loading")}</div>
       </div>
     );
   }
@@ -60,13 +63,13 @@ export default function Create() {
   if (!isAuthenticated) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-6">
-        <h1 className="text-3xl font-serif">Create a tribute page</h1>
+        <h1 className="text-3xl font-serif">{t("create.heading")}</h1>
         <p className="text-muted-foreground font-serif italic max-w-md">
-          You need to sign in before you can create a tribute page.
+          {t("create.signInRequired")}
         </p>
         <Link href="/sign-in?intent=create">
           <Button className="font-serif rounded-full px-8">
-            Sign in to continue
+            {t("create.signInButton")}
           </Button>
         </Link>
       </div>
@@ -92,7 +95,7 @@ export default function Create() {
       },
       {
         onSuccess: (tenant) => {
-          toast({ title: "Tribute page created", description: `/${tenant.slug} is ready.` });
+          toast({ title: t("create.toastCreatedTitle"), description: t("create.toastCreatedDesc", { slug: tenant.slug }) });
           setLocation(`/${tenant.slug}/manage`);
         },
         onError: (err: unknown) => {
@@ -100,20 +103,20 @@ export default function Create() {
           if (status === 409) {
             toast({
               variant: "destructive",
-              title: "Slug already taken",
-              description: "Please choose a different URL slug.",
+              title: t("create.toastSlugTakenTitle"),
+              description: t("create.toastSlugTakenDesc"),
             });
           } else if (status === 422) {
             toast({
               variant: "destructive",
-              title: "Invalid input",
-              description: "Please check your inputs and try again.",
+              title: t("create.toastInvalidTitle"),
+              description: t("create.toastInvalidDesc"),
             });
           } else {
             toast({
               variant: "destructive",
-              title: "Error",
-              description: "Something went wrong. Please try again.",
+              title: t("create.toastErrorTitle"),
+              description: t("create.toastErrorDesc"),
             });
           }
         },
@@ -128,23 +131,23 @@ export default function Create() {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-lg bg-card p-8 md:p-12 rounded-2xl shadow-xl border border-border/40"
       >
-        <h1 className="text-3xl font-serif mb-2 text-center">Create a tribute page</h1>
+        <h1 className="text-3xl font-serif mb-2 text-center">{t("create.heading")}</h1>
         <p className="text-muted-foreground font-serif italic text-center mb-8">
-          A place to gather memories of someone you love.
+          {t("create.subheading")}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Slug */}
           <div className="space-y-1">
             <label htmlFor="slug" className="text-sm font-medium text-foreground/80">
-              Page URL <span className="text-destructive">*</span>
+              {t("create.slugLabel")} <span className="text-destructive">*</span>
             </label>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground font-mono flex-shrink-0">belovedfriend.org/</span>
               <Input
                 id="slug"
                 required
-                placeholder="e.g. maria-garcia"
+                placeholder={t("create.slugPlaceholder")}
                 value={slugInput}
                 onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                 className="h-10 bg-background font-mono"
@@ -158,7 +161,7 @@ export default function Create() {
           {/* Friend Name */}
           <div className="space-y-1">
             <label htmlFor="friendName" className="text-sm font-medium text-foreground/80">
-              Full name <span className="text-destructive">*</span>
+              {t("create.friendNameLabel")} <span className="text-destructive">*</span>
             </label>
             <Input
               id="friendName"
@@ -174,7 +177,7 @@ export default function Create() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label htmlFor="birthYear" className="text-sm font-medium text-foreground/80">
-                Birth year
+                {t("create.birthYearLabel")}
               </label>
               <Input
                 id="birthYear"
@@ -189,7 +192,7 @@ export default function Create() {
             </div>
             <div className="space-y-1">
               <label htmlFor="deathYear" className="text-sm font-medium text-foreground/80">
-                Year of passing
+                {t("create.deathYearLabel")}
               </label>
               <Input
                 id="deathYear"
@@ -207,11 +210,11 @@ export default function Create() {
           {/* Tagline */}
           <div className="space-y-1">
             <label htmlFor="tagline" className="text-sm font-medium text-foreground/80">
-              Tagline <span className="text-xs text-muted-foreground">(optional)</span>
+              {t("create.taglineLabel")} <span className="text-xs text-muted-foreground">({t("create.optional")})</span>
             </label>
             <Input
               id="tagline"
-              placeholder="A short phrase that captures who they were"
+              placeholder={t("create.taglinePlaceholder")}
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
               className="h-10 bg-background"
@@ -223,7 +226,7 @@ export default function Create() {
             className="w-full h-12 text-lg font-serif rounded-xl"
             disabled={createTenant.isPending}
           >
-            {createTenant.isPending ? "Creating…" : "Create tribute page"}
+            {createTenant.isPending ? t("create.creating") : t("create.createButton")}
           </Button>
         </form>
       </motion.div>

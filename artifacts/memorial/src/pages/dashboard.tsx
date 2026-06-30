@@ -3,8 +3,10 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useListMyTenants, getListMyTenantsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/components/language-provider";
 
 export default function Dashboard() {
+  const { t } = useT();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { data: myTenants, isLoading: tenantsLoading } = useListMyTenants({
     query: { enabled: isAuthenticated, queryKey: getListMyTenantsQueryKey() },
@@ -13,7 +15,7 @@ export default function Dashboard() {
   if (authLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="font-serif italic text-muted-foreground animate-pulse">Loading…</div>
+        <div className="font-serif italic text-muted-foreground animate-pulse">{t("landing.loading")}</div>
       </div>
     );
   }
@@ -21,12 +23,12 @@ export default function Dashboard() {
   if (!isAuthenticated) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-6">
-        <h1 className="text-3xl font-serif">Your Dashboard</h1>
+        <h1 className="text-3xl font-serif">{t("dashboard.headingUnauthenticated")}</h1>
         <p className="text-muted-foreground font-serif italic max-w-md">
-          Sign in to manage your tribute pages.
+          {t("dashboard.signInPrompt")}
         </p>
         <Link href="/sign-in">
-          <Button className="font-serif rounded-full px-8">Sign in</Button>
+          <Button className="font-serif rounded-full px-8">{t("nav.signIn")}</Button>
         </Link>
       </div>
     );
@@ -37,32 +39,32 @@ export default function Dashboard() {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-serif">Your tribute pages</h1>
+            <h1 className="text-3xl font-serif">{t("dashboard.heading")}</h1>
             {user?.email && (
               <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
             )}
           </div>
           <Link href="/create">
             <Button className="font-serif rounded-full px-6">
-              Create a page
+              {t("nav.createPage")}
             </Button>
           </Link>
         </div>
 
         {tenantsLoading && (
           <div className="font-serif italic text-muted-foreground animate-pulse py-12 text-center">
-            Loading…
+            {t("landing.loading")}
           </div>
         )}
 
         {!tenantsLoading && (!myTenants || myTenants.length === 0) && (
           <div className="flex flex-col items-center justify-center py-20 text-center gap-6 bg-muted/30 rounded-2xl border border-dashed border-border">
             <p className="text-xl font-serif text-muted-foreground italic">
-              You haven't created any tribute pages yet.
+              {t("dashboard.emptyState")}
             </p>
             <Link href="/create">
               <Button size="lg" className="font-serif rounded-full px-10">
-                Create your first tribute page
+                {t("dashboard.createFirstButton")}
               </Button>
             </Link>
           </div>
@@ -89,12 +91,12 @@ export default function Dashboard() {
                 <div className="flex gap-3 mt-auto">
                   <Link href={`/${tenant.slug}`} className="flex-1">
                     <Button variant="outline" className="w-full font-serif rounded-xl">
-                      View page
+                      {t("dashboard.viewPage")}
                     </Button>
                   </Link>
                   <Link href={`/${tenant.slug}/manage`} className="flex-1">
                     <Button variant="default" className="w-full font-serif rounded-xl">
-                      Manage
+                      {t("nav.manage")}
                     </Button>
                   </Link>
                 </div>
