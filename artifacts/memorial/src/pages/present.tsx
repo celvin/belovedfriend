@@ -213,8 +213,8 @@ export default function Present() {
     seenRef.current = ids;
     if (!isNew) return;
     setFlourish(true);
-    const t = setTimeout(() => setFlourish(false), FLOURISH_MS);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setFlourish(false), FLOURISH_MS);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   // Auto-hiding controls + cursor.
