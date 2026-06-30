@@ -309,6 +309,7 @@
   "card.saving": "Enregistrement...",
   "card.saveButton": "Enregistrer la carte",
   "card.livePreview": "Aperçu en direct",
+  "card.photoPreviewAlt": "Aperçu",
   "card.addPhoto": "Ajouter une photo",
   "card.messagePlaceholderPreview": "Votre message apparaîtra ici...",
   "card.toastSavedTitle": "Hommage enregistré",

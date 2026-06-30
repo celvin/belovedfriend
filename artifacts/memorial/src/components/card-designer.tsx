@@ -235,7 +235,7 @@ export function CardDesigner({ slug, nodeId }: Props) {
           >
             {photoPreview ? (
               <div className="relative w-full h-64 shrink-0 group">
-                <img src={photoPreview} alt="Preview" className="w-full h-full object-cover opacity-90" />
+                <img src={photoPreview} alt={t("card.photoPreviewAlt")} className="w-full h-full object-cover opacity-90" />
                 <button
                   onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
                   className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"

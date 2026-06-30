@@ -309,6 +309,7 @@
   "card.saving": "Saving...",
   "card.saveButton": "Save Card",
   "card.livePreview": "Live Preview",
+  "card.photoPreviewAlt": "Preview",
   "card.addPhoto": "Add Photo",
   "card.messagePlaceholderPreview": "Your message will appear here...",
   "card.toastSavedTitle": "Tribute saved",
