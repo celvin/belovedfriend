@@ -267,5 +267,9 @@
   "dashboard.heading": "Your tribute pages",
   "dashboard.emptyState": "You haven't created any tribute pages yet.",
   "dashboard.createFirstButton": "Create your first tribute page",
-  "dashboard.viewPage": "View page"
+  "dashboard.viewPage": "View page",
+  "manage.linkAuthorFallback": "A link",
+  "manage.sectionStory": "Story",
+  "manage.sectionWall": "Tributes",
+  "manage.sectionReach": "Reach"
 }

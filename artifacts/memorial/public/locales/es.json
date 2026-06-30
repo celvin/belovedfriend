@@ -267,5 +267,9 @@
   "dashboard.heading": "Tus páginas de homenaje",
   "dashboard.emptyState": "Aún no has creado ninguna página de homenaje.",
   "dashboard.createFirstButton": "Crea tu primera página de homenaje",
-  "dashboard.viewPage": "Ver página"
+  "dashboard.viewPage": "Ver página",
+  "manage.linkAuthorFallback": "Un enlace",
+  "manage.sectionStory": "Historia",
+  "manage.sectionWall": "Homenajes",
+  "manage.sectionReach": "Alcance"
 }

@@ -598,7 +598,7 @@ export default function Manage() {
         slug,
         data: {
           type: "link",
-          authorName: linkTitle.trim() || "A link",
+          authorName: linkTitle.trim() || t("manage.linkAuthorFallback"),
           body: linkNote.trim() || undefined,
           url: linkUrl.trim(),
         },
@@ -696,8 +696,8 @@ export default function Manage() {
             value={slug}
             onChange={(e) => setLocation(`/${e.target.value}/manage`)}
           >
-            {mine.map((t) => (
-              <option key={t.slug} value={t.slug}>{t.friendName ?? t.slug}</option>
+            {mine.map((page) => (
+              <option key={page.slug} value={page.slug}>{page.friendName ?? page.slug}</option>
             ))}
           </select>
         </div>
@@ -1015,7 +1015,7 @@ export default function Manage() {
                       key={key}
                       className="flex items-center gap-2 border border-border/30 rounded-md px-3 py-2 bg-muted/20 text-sm"
                     >
-                      <span className="flex-1 capitalize">{key}</span>
+                      <span className="flex-1">{t(({ story: "manage.sectionStory", wall: "manage.sectionWall", reach: "manage.sectionReach" } as Record<string, string>)[key] ?? key)}</span>
                       <button
                         type="button"
                         onClick={() => moveSection(i, -1)}
