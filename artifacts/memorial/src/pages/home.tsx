@@ -6,8 +6,10 @@ import { ReachNetwork } from "@/components/reach-network";
 import { useTenantSlug } from "@/lib/tenant";
 import { Linkify } from "@/lib/linkify";
 import { useGetTenant } from "@workspace/api-client-react";
+import { useT } from "@/components/language-provider";
 
 export default function Home() {
+  const { t } = useT();
   const slug = useTenantSlug();
   const [, setLocation] = useLocation();
   const { data: tenant, isLoading, error } = useGetTenant(slug ?? "", {
@@ -37,9 +39,9 @@ export default function Home() {
   if (!isLoading && (error || !tenant) && slug) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-6">
-        <h1 className="text-4xl font-serif">Page not found</h1>
+        <h1 className="text-4xl font-serif">{t("home.notFoundHeading")}</h1>
         <p className="text-muted-foreground font-serif italic">
-          We couldn't find a tribute page at <span className="font-mono text-sm">/{slug}</span>.
+          {t("home.notFoundBody", { slug })}
         </p>
         <Link href="/">
           <Button variant="outline" className="font-serif rounded-full px-8">
@@ -54,7 +56,7 @@ export default function Home() {
   if (isLoading || !tenant) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="font-serif italic text-muted-foreground animate-pulse">Loading…</div>
+        <div className="font-serif italic text-muted-foreground animate-pulse">{t("home.loading")}</div>
       </div>
     );
   }
@@ -154,7 +156,7 @@ export default function Home() {
               href={`/${slug}/present`}
               className="inline-flex items-center gap-1.5 text-sm font-serif text-muted-foreground hover:text-primary transition-colors"
             >
-              ▶ Play the tribute
+              {t("home.playTribute")}
             </Link>
           </div>
         </motion.div>
@@ -199,15 +201,15 @@ export default function Home() {
                 className="max-w-2xl mx-auto space-y-6"
               >
                 <h2 className="text-2xl md:text-4xl font-serif italic text-foreground">
-                  Share your memories
+                  {t("home.wallHeading")}
                 </h2>
                 <p className="text-base md:text-lg text-muted-foreground font-serif">
-                  Help us gather the stories, the quiet moments, and the legacy left behind.
+                  {t("home.wallSubcopy")}
                 </p>
                 <div className="pt-4">
                   <Link href={`/${slug}/wall`}>
                     <Button variant="outline" size="lg" className="h-12 md:h-14 px-8 md:px-10 text-base md:text-lg font-serif rounded-full border-primary/20 hover:border-primary/50 transition-all">
-                      Enter the Tribute Wall
+                      {t("home.enterTributeWall")}
                     </Button>
                   </Link>
                 </div>
@@ -227,10 +229,10 @@ export default function Home() {
                   className="text-center mb-8 md:mb-12 space-y-3 md:space-y-4"
                 >
                   <div className="text-xs tracking-[0.3em] uppercase text-primary/80 font-medium">
-                    The Reach of Their Work
+                    {t("home.reachEyebrow")}
                   </div>
                   <h2 className="text-3xl sm:text-4xl md:text-6xl font-serif text-foreground leading-tight">
-                    A quiet thread<br className="hidden md:block" /> through countless lives
+                    {t("home.reachHeading")}
                   </h2>
                 </motion.div>
 
@@ -242,7 +244,7 @@ export default function Home() {
                       size="lg"
                       className="h-12 px-8 text-base font-serif bg-primary hover:bg-primary/90 text-primary-foreground rounded-full"
                     >
-                      Add your voice to the map
+                      {t("home.addVoiceToMap")}
                     </Button>
                   </Link>
                 </div>
@@ -264,15 +266,15 @@ export default function Home() {
             className="max-w-2xl mx-auto space-y-6 md:space-y-8"
           >
             <h2 className="text-2xl md:text-4xl font-serif italic text-foreground">
-              Share your memories
+              {t("home.wallHeading")}
             </h2>
             <p className="text-base md:text-lg text-muted-foreground font-serif">
-              Help us gather the stories, the quiet moments, and the legacy left behind.
+              {t("home.wallSubcopy")}
             </p>
             <div className="pt-4 md:pt-8">
               <Link href={`/${slug}/wall`}>
                 <Button variant="outline" size="lg" className="h-12 md:h-14 px-8 md:px-10 text-base md:text-lg font-serif rounded-full border-primary/20 hover:border-primary/50 transition-all">
-                  Enter the Tribute Wall
+                  {t("home.enterTributeWall")}
                 </Button>
               </Link>
             </div>
