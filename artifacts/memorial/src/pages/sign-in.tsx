@@ -115,7 +115,9 @@ export default function SignIn() {
             </div>
             <h2 className="text-xl font-serif">{t("signin.checkEmail")}</h2>
             <p className="text-muted-foreground">
-              {t("signin.sentTo", { email })}
+              {t("signin.sentToBefore")}{" "}
+              <span className="font-medium text-foreground">{email}</span>
+              {". "}{t("signin.sentToAfter")}
             </p>
             <Button variant="ghost" onClick={() => setSubmitted(false)} className="mt-4">
               {t("signin.useDifferentEmail")}

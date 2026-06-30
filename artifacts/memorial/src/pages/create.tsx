@@ -48,8 +48,8 @@ export default function Create() {
 
   // Debounce slug input ~400ms
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSlug(slugInput.trim().toLowerCase()), 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedSlug(slugInput.trim().toLowerCase()), 400);
+    return () => clearTimeout(timer);
   }, [slugInput]);
 
   if (authLoading) {
