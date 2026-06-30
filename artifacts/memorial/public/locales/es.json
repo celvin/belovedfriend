@@ -271,5 +271,18 @@
   "manage.linkAuthorFallback": "Un enlace",
   "manage.sectionStory": "Historia",
   "manage.sectionWall": "Homenajes",
-  "manage.sectionReach": "Alcance"
+  "manage.sectionReach": "Alcance",
+  "present.prevScene": "Anterior",
+  "present.play": "Reproducir",
+  "present.pause": "Pausar",
+  "present.nextScene": "Siguiente",
+  "present.mute": "Silenciar",
+  "present.unmute": "Activar sonido",
+  "present.fullscreen": "Pantalla completa",
+  "present.exitFullscreen": "Salir de pantalla completa",
+  "present.exitPresentation": "Salir de la presentación",
+  "present.preparing": "Preparando el homenaje…",
+  "present.emptyState": "Los recuerdos aparecerán aquí a medida que se compartan.",
+  "present.newMemoryArrived": "✨ Acaba de llegar un nuevo recuerdo",
+  "present.aMemory": "Un recuerdo."
 }

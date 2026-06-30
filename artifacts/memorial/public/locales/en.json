@@ -271,5 +271,18 @@
   "manage.linkAuthorFallback": "A link",
   "manage.sectionStory": "Story",
   "manage.sectionWall": "Tributes",
-  "manage.sectionReach": "Reach"
+  "manage.sectionReach": "Reach",
+  "present.prevScene": "Previous",
+  "present.play": "Play",
+  "present.pause": "Pause",
+  "present.nextScene": "Next",
+  "present.mute": "Mute",
+  "present.unmute": "Unmute",
+  "present.fullscreen": "Fullscreen",
+  "present.exitFullscreen": "Exit fullscreen",
+  "present.exitPresentation": "Exit presentation",
+  "present.preparing": "Preparing the tribute…",
+  "present.emptyState": "Memories will appear here as they're shared.",
+  "present.newMemoryArrived": "✨ A new memory just arrived",
+  "present.aMemory": "A memory."
 }

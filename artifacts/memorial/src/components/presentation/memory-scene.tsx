@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import type { Message } from "@workspace/api-client-react";
 import { PALETTE } from "@/components/presentation/constants";
+import { useT } from "@/components/language-provider";
 
 interface Props {
   message: Message;
@@ -28,6 +29,7 @@ function Caption({ heading, sub }: { heading?: string | null; sub?: string | nul
 }
 
 export function MemoryScene({ message, muted, reduceMotion = false, onEnded }: Props) {
+  const { t } = useT();
   const who = [message.authorName, message.relationship, message.location].filter(Boolean).join(" · ");
   const cardBody = (message.card as { body?: string } | null | undefined)?.body;
   const text = cardBody || message.body || "";
@@ -77,7 +79,7 @@ export function MemoryScene({ message, muted, reduceMotion = false, onEnded }: P
         transition={{ duration: 1.2 }}
         className="max-w-3xl font-serif text-2xl leading-relaxed text-white/90 md:text-4xl"
       >
-        {text || "A memory."}
+        {text || t("present.aMemory")}
       </motion.p>
       {who && <p className="mt-8 font-serif italic text-white/60">{who}</p>}
     </div>
