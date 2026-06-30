@@ -88,5 +88,16 @@
   "create.toastInvalidTitle": "Entrada no válida",
   "create.toastInvalidDesc": "Por favor, revisa tus datos e inténtalo de nuevo.",
   "create.toastErrorTitle": "Error",
-  "create.toastErrorDesc": "Algo salió mal. Por favor, inténtalo de nuevo."
+  "create.toastErrorDesc": "Algo salió mal. Por favor, inténtalo de nuevo.",
+  "compose.preparing": "Preparando...",
+  "compose.signInHeading": "Inicia sesión para dejar un homenaje",
+  "compose.signInSubcopy": "Usamos un enlace mágico para verificar tu identidad — no necesitas contraseña.",
+  "compose.getMagicLink": "Obtener un enlace mágico",
+  "compose.attachingToNode": "Adjuntando a un lugar en el mapa (nodo #{nodeId})",
+  "compose.selectPrompt": "Elige cómo deseas compartir tu recuerdo. Puedes grabar un tranquilo video o diseñar cuidadosamente una tarjeta de condolencias.",
+  "compose.videoOptionTitle": "Grabar un video",
+  "compose.videoOptionBody": "Habla desde el corazón. Graba hasta 3 minutos de video directamente desde tu cámara.",
+  "compose.cardOptionTitle": "Diseñar una tarjeta",
+  "compose.cardOptionBody": "Escribe un mensaje, elige un diseño delicado y sube opcionalmente una foto.",
+  "compose.back": "← Volver"
 }

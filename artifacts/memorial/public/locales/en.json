@@ -88,5 +88,16 @@
   "create.toastInvalidTitle": "Invalid input",
   "create.toastInvalidDesc": "Please check your inputs and try again.",
   "create.toastErrorTitle": "Error",
-  "create.toastErrorDesc": "Something went wrong. Please try again."
+  "create.toastErrorDesc": "Something went wrong. Please try again.",
+  "compose.preparing": "Preparing...",
+  "compose.signInHeading": "Sign in to leave a tribute",
+  "compose.signInSubcopy": "We use a magic link to verify your identity — no password needed.",
+  "compose.getMagicLink": "Get a magic link",
+  "compose.attachingToNode": "Attaching to a place on the map (node #{nodeId})",
+  "compose.selectPrompt": "Choose how you'd like to share your memory. You can record a quiet video message or carefully design a condolence card.",
+  "compose.videoOptionTitle": "Record a Video",
+  "compose.videoOptionBody": "Speak from the heart. Record up to 3 minutes of video directly from your camera.",
+  "compose.cardOptionTitle": "Design a Card",
+  "compose.cardOptionBody": "Write a message, choose a gentle design, and optionally upload a photo.",
+  "compose.back": "← Back"
 }
