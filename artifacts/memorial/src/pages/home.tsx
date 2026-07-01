@@ -69,13 +69,22 @@ export default function Home() {
   const storyConfig = (config.story ?? {}) as Record<string, unknown>;
 
   const showDates = heroConfig.showDates !== false;
-  // The editor saves `primaryLabel`; keep a fallback to the legacy `tributeLabel`.
+  // A CTA label counts as "customized" only if it's non-blank AND not a shipped
+  // English default. Blank or default-equal values fall through to the translated
+  // label, so ES/FR visitors never see English defaults that leaked into pageConfig
+  // (e.g. tenants that saved page settings before this was fixed). The editor saves
+  // `primaryLabel`; keep a fallback to the legacy `tributeLabel`.
+  const DEFAULT_CTA_LABELS = new Set(["leave a tribute", "read tributes", "explore their reach"]);
+  const customCtaLabel = (v: unknown): string | undefined => {
+    const s = typeof v === "string" ? v.trim() : "";
+    return s && !DEFAULT_CTA_LABELS.has(s.toLowerCase()) ? s : undefined;
+  };
   const tributeLabel =
-    (ctaConfig.primaryLabel as string | undefined) ??
-    (ctaConfig.tributeLabel as string | undefined) ??
+    customCtaLabel(ctaConfig.primaryLabel) ??
+    customCtaLabel(ctaConfig.tributeLabel) ??
     t("nav.leaveTribute");
-  const wallLabel = (ctaConfig.wallLabel as string | undefined) ?? t("home.wallLabel");
-  const reachLabel = (ctaConfig.reachLabel as string | undefined) ?? t("home.reachLabel");
+  const wallLabel = customCtaLabel(ctaConfig.wallLabel) ?? t("home.wallLabel");
+  const reachLabel = customCtaLabel(ctaConfig.reachLabel) ?? t("home.reachLabel");
 
   const sectionOrder = (sectionsConfig.order as string[] | undefined) ?? ["story", "wall", "reach"];
   // Per-section visibility toggles (default visible unless explicitly false).
