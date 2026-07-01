@@ -98,8 +98,11 @@ function buildPageConfig(settings: PageSettingsState): TenantUpdatePageConfig {
       return { label: r.label, value: r.value };
     }),
     cta: {
-      primaryLabel: settings.primaryLabel,
-      wallLabel: settings.wallLabel,
+      // Persist labels only when the owner actually typed one. A blank field means
+      // "use the default", which is stored as absent so the page renders the
+      // per-visitor translated label rather than a frozen English string.
+      ...(settings.primaryLabel.trim() ? { primaryLabel: settings.primaryLabel.trim() } : {}),
+      ...(settings.wallLabel.trim() ? { wallLabel: settings.wallLabel.trim() } : {}),
     },
     defaultLanguage: settings.defaultLanguage,
   };
@@ -148,8 +151,8 @@ function buildDefaultSettings(cfg: Record<string, unknown>): PageSettingsState {
     sectionWall: sectionsCfg.wall !== false,
     sectionReach: sectionsCfg.reach !== false,
     reachSummary,
-    primaryLabel: (ctaCfg.primaryLabel as string | undefined) ?? "Leave a tribute",
-    wallLabel: (ctaCfg.wallLabel as string | undefined) ?? "Read tributes",
+    primaryLabel: (ctaCfg.primaryLabel as string | undefined) ?? "",
+    wallLabel: (ctaCfg.wallLabel as string | undefined) ?? "",
     defaultLanguage: isLang(cfg.defaultLanguage) ? cfg.defaultLanguage : "en",
   };
 }
@@ -1116,7 +1119,7 @@ export default function Manage() {
                   className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                   value={pageSettings.primaryLabel}
                   onChange={(e) => setPageSettings((prev) => prev ? { ...prev, primaryLabel: e.target.value } : prev)}
-                  placeholder="Leave a tribute"
+                  placeholder={t("nav.leaveTribute")}
                 />
               </div>
               <div>
@@ -1125,7 +1128,7 @@ export default function Manage() {
                   className="w-full border border-border/60 rounded-md px-3 py-2 text-sm bg-background"
                   value={pageSettings.wallLabel}
                   onChange={(e) => setPageSettings((prev) => prev ? { ...prev, wallLabel: e.target.value } : prev)}
-                  placeholder="Read tributes"
+                  placeholder={t("home.wallLabel")}
                 />
               </div>
             </div>
